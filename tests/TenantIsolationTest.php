@@ -59,10 +59,10 @@ final class TenantIsolationTest extends TestCase
         $pdo = $this->pdo();
         $name = $pdo->query("SELECT DATABASE()")->fetchColumn();
 
-        // Wipe any previous run of this fixture tenant and its rows.
-        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        // Wipe any previous run of this fixture tenant. FKs are ON so the
+        // ON DELETE CASCADE cleans up all child rows — do NOT disable FK checks
+        // here, that would orphan them instead.
         $pdo->exec("DELETE FROM tenants WHERE slug = " . $pdo->quote(self::FIXTURE_SLUG));
-        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 
         $pdo->exec("INSERT INTO tenants (slug, display_name, active) VALUES (" .
             $pdo->quote(self::FIXTURE_SLUG) . ", 'Isolation Fixture', 1)");

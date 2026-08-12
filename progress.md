@@ -1,10 +1,10 @@
 # Eratotime — Build Progress
 
-## Current Phase: Phase 3 — Google Calendar Read-Only Sync
+## Current Phase: Phase 3 — CalDAV/Baïkal Read-Only Sync
 
-### Status: Blocked on decision + setup (see below)
+### Status: Blocked on external setup (Baïkal install on Hostinger)
 
-Phase 0 (scaffold), Phase 1 (tenant isolation tests), and Phase 2 (availability engine) are complete **locally**. Phase 3 is gated on the calendar-of-record decision (requirements §1.6/Appendix A) and the Google Cloud Console OAuth app — both external/manual.
+Phase 0 (scaffold), Phase 1 (tenant isolation tests), and Phase 2 (availability engine) are complete **locally**. Phase 3 is gated on the Baïkal install + `stephen@meertec.ltd` calendar setup on Hostinger — the calendar-of-record decision itself is resolved (Appendix A).
 
 ### Model note (2026-08)
 Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-requirements.md` revision note and section 1.6. The app collects requests + soft-holds slots + notifies the organizer, who creates calendar events manually. **No calendar write path, no `.ics`, no tokenized reschedule/cancel** in v1. The Gmail address (`meertec.ltd@gmail.com`) must never appear in anything the app sends. `db/eratotime_migration.sql` is the authoritative schema.
@@ -12,8 +12,10 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
 ### Dependencies
 - [ ] MySQL database credentials from hPanel (DB name, username, password, host) — needed for live deployment; local dev uses the XAMPP MariaDB (see Local dev env below)
 - [ ] Composer method on Hostinger (SSH install vs vendor-and-commit) — unknown; composer works fine locally
-- [ ] Google Cloud Console OAuth app (**read-only** scope only — needed by Phase 3, register early)
-- [ ] **Open decision — calendar-of-record (requirements §1.6/Appendix A):** Google free Gmail (default) vs Google Workspace (`stephen@meertec.ltd`) vs self-hosted Baïkal CalDAV (`stephen@meertec.ltd`). **Must be resolved before Phase 3 starts** — it decides which account/server the read-only sync connects to.
+- [ ] **Baïkal install + `stephen@meertec.ltd` user/calendar + app-specific password** (calendar of record — needed by Phase 3; requirements §1.6/Appendix A)
+- [ ] **Verify Baïkal server-side invite sending at Phase 3** (the earlier `invite_from` claim) — safe default is the Thunderbird client sends invites from `stephen@meertec.ltd` (requirements §2.4/3.4)
+- [ ] Optional: Google Cloud Console OAuth app (**read-only** scope) — only if the Google secondary source is built
+- [x] **Calendar-of-record resolved (2026-08-12): CalDAV/Baïkal under `stephen@meertec.ltd`** (requirements Appendix A). Google `meertec.ltd@gmail.com` = optional read-only secondary source + phone-alert attendee trick. Phone calendar = Google-alert trick (no DAVx⁵ app). Video = fixed Google Meet link auto-embedded in events via the `.ics` import (requirements §2.1).
 - [x] **Build vs. adopt resolved:** custom build confirmed (2026-08). Easy!Appointments 1.6.0 reviewed from source; learning points in requirements Appendix B — not adopted.
 
 ### Local dev env
@@ -60,16 +62,16 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - 29 unit tests (`tests/AvailabilityEngineTest.php`) covering the spec §8 matrix incl. EA regressions: fully-contained blockout, back-to-back merge, all-day block, workday-boundary clamp, zero-length ignored, buffers, soft-holds, min-notice/max-horizon edges, DST wall-clock invariance + DST-aware notice gate, caps.
   - **Handoff to Phase 3:** `availability_day()` contract is stable — build the caller in `api/slots.php` to supply organizer-tz blockouts/soft-holds and the organizer-tz `now`.
 
-### Phase 3 — Google Calendar Read-Only Sync
+### Phase 3 — CalDAV/Baïkal Read-Only Sync (calendar of record)
 - **Status:** Not started
-- **Prerequisites:** Phases 0–2 complete; **calendar-of-record decision resolved (requirements §1.6/Appendix A — the gate)**; Google Cloud Console project + OAuth credentials (**read-only** scope only)
+- **Prerequisites:** Phases 0–2 complete; **calendar-of-record decision resolved (2026-08-12: CalDAV/Baïkal — requirements Appendix A)**; **Baïkal installed on Hostinger with `stephen@meertec.ltd` user + calendar + app-specific password**
 - **Started:**
 - **Completed:**
 - **Notes:**
-  - **Read-only only:** busy-block sync via `events.list` (`singleEvents=true`, pagination bound), idempotent upsert/delete keyed on Google's stable event ID. No write scope, no event creation, no `.ics` — verify in review.
-  - **Open decision — calendar-of-record target for this phase:** Google (`meertec.ltd@gmail.com` — Appendix A Option 2, the default) vs Google Workspace under `stephen@meertec.ltd` (Option 1, paid) vs self-hosted Baïkal CalDAV under `stephen@meertec.ltd` (Option 3, zero cost, needs a CalDAV client for day-to-day viewing). **Resolve before starting this phase** — it determines whether this phase builds a Google OAuth connector or a CalDAV connector (pulling the phase-2 provider path forward). Note: 365 Family ruled out (custom domains dropped on Family tier Nov 2023).
-  - If Google is chosen: sync source = the connected Google account, default `meertec.ltd@gmail.com`. The Gmail address is an admin-panel-only label — it appears nowhere the app sends to invitees.
-  - **Do NOT** let the coding agent build any `.ics`/iTIP invite or derive `ORGANIZER` from the OAuth account object — the app builds no calendar invite at all in v1; the SMTP `From:` header always comes from `global_settings.mailbox_destination` (`stephen@meertec.ltd`).
+  - **PRIMARY source = Baïkal CalDAV** under `stephen@meertec.ltd`: busy-block sync via `PROPFIND`/`REPORT` (calendar-query), UID-keyed idempotent upsert/delete, ICS feed fallback (requirements §3.4/3.5). Sabre/VObject also generates the Phase 5 `.ics` import file.
+  - Google `meertec.ltd@gmail.com` is an **optional secondary** read-only source only (existing Gmail meetings block slots; phone-alert attendee trick is independent). The seeded google source row stays inactive unless built.
+  - **Verify Baïkal's server-side invite sending** (`invite_from` claim) — safe default: Thunderbird sends invites from `stephen@meertec.ltd`.
+  - **Do NOT** let the coding agent build any `.ics`/iTIP invite *sent to invitees*, or derive `ORGANIZER` from anything — the app builds no calendar invite at all; the SMTP `From:` header always comes from `global_settings.mailbox_destination` (`stephen@meertec.ltd`). The only `.ics` the app produces is the calendar-import file for the organizer's own calendar (Phase 5).
 
 ### Phase 4 — Public Booking Page
 - **Status:** Not started

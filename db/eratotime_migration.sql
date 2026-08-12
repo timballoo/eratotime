@@ -266,14 +266,27 @@ ON DUPLICATE KEY UPDATE
     mailbox_destination = VALUES(mailbox_destination),
     organizer_timezone  = VALUES(organizer_timezone);
 
--- Google Calendar source seeded but INACTIVE until the OAuth consent flow
--- (section 3.2) has actually been run against meertec.ltd@gmail.com —
--- credentials_encrypted stays NULL until then. Flip `active` to 1 as part
--- of Phase 3, not before.
+-- Calendar sources seeded but INACTIVE until their setup steps are done:
+--   1. PRIMARY — Baïkal CalDAV (calendar of record, Appendix A decision 2026-08):
+--      install Baïkal, create the stephen@meertec.ltd user/calendar, then fill
+--      credentials_encrypted + ics_url/calendar_identifier and flip active.
+--   2. SECONDARY (optional) — Google (meertec.ltd@gmail.com): requires the OAuth
+--      consent flow (section 3.2) if the organizer wants Gmail meetings to block
+--      slots. credentials_encrypted stays NULL until then.
+-- Flip `active` to 1 only as part of Phase 3, not before.
 INSERT INTO calendar_sources (
     tenant_id, provider, label, calendar_identifier, active, last_sync_status
 )
-SELECT @tenant_id, 'google', 'Meertec Gmail', 'meertec.ltd@gmail.com', 0, 'never_run'
+SELECT @tenant_id, 'caldav', 'Meertec Baikal (calendar of record)', 'https://www.meertec.ltd/baikal/cal.php/calendars/stephen/default/', 0, 'never_run'
+WHERE NOT EXISTS (
+    SELECT 1 FROM calendar_sources
+    WHERE tenant_id = @tenant_id AND provider = 'caldav'
+);
+
+INSERT INTO calendar_sources (
+    tenant_id, provider, label, calendar_identifier, active, last_sync_status
+)
+SELECT @tenant_id, 'google', 'Meertec Gmail (secondary)', 'meertec.ltd@gmail.com', 0, 'never_run'
 WHERE NOT EXISTS (
     SELECT 1 FROM calendar_sources
     WHERE tenant_id = @tenant_id AND calendar_identifier = 'meertec.ltd@gmail.com'
