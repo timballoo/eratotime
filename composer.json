@@ -24,6 +24,7 @@
             "env.php",
             "crypto_lib.php",
             "calendar_sync_lib.php",
+            "availability_context_lib.php",
             "providers/caldav_provider.php"
         ]
     },

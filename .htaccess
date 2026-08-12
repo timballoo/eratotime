@@ -1,10 +1,16 @@
-# Eratotime — web-serve guard.
+# Eratotime — routing + web-serve guard.
+
+# --- Public booking routing: /t/{tenant}/book/{type} -> book.php -----------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^t/([^/]+)/book/([^/]+)/?$ book.php?tenant=$1&type=$2 [L,QSA]
+</IfModule>
+
+# --- Web-serve guard --------------------------------------------------------
 # If this app is ever deployed inside a web-served directory (e.g. Hostinger
 # public_html/eratotime), deny direct HTTP access to the secret-bearing files.
 # The preferred deployment puts the app OUTSIDE the web root; this is the
 # belt-and-braces for the in-web-root layout.
-#
-# (This is Apache/LiteSpeed syntax, which Hostinger supports.)
 
 <IfModule mod_authz_core.c>
     <FilesMatch "^(\.env|\.env\..*|config\.php|.*\.key)$">

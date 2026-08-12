@@ -1,0 +1,241 @@
+/* ===========================================================
+   Eratotime booking page — Meertec brand
+   Tokens mirrored from www.meertec.ltd/style.css:
+   Ink (navy) + Paper (warm neutral) + Brass + Verdigris
+   Display: Fraunces · Body: IBM Plex Sans · Data: IBM Plex Mono
+   =========================================================== */
+
+:root {
+  --ink:          #0F1B2B;
+  --ink-soft:     #16263B;
+  --ink-line:     #2A3B52;
+  --ink-text-lo:  #A8B3C2;
+  --ink-text-hi:  #EDEFF2;
+
+  --paper:        #F6F3EC;
+  --paper-alt:    #ECE7DA;
+  --paper-line:   #D9D2C0;
+  --paper-text-lo:#6B6355;
+  --paper-text-hi:#1B1A17;
+
+  --brass:        #B08D57;
+  --brass-dark:   #8C6E3F;
+  --verdigris:    #4C7A6D;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body:    "IBM Plex Sans", -apple-system, Segoe UI, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+
+  --max: 1120px;
+  --radius: 3px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+.booking-body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--paper-text-hi);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.booking-body img { max-width: 100%; display: block; }
+.booking-body a { color: var(--brass-dark); }
+
+.section-inner { max-width: var(--max); margin: 0 auto; padding: 0 32px; }
+
+/* ---------- Masthead ---------- */
+.masthead {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15, 27, 43, 0.94);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--ink-line);
+}
+.masthead-inner {
+  max-width: var(--max); margin: 0 auto; padding: 14px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.masthead-mark {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-size: 1.3rem; font-weight: 600;
+  color: var(--ink-text-hi); text-decoration: none; letter-spacing: 0.01em;
+}
+.masthead-logo { width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto; }
+.masthead-label {
+  font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--brass);
+}
+
+/* ---------- Layout ---------- */
+.booking-main { padding: 56px 0 80px; }
+.booking-wrap { max-width: 760px; }
+.booking-card {
+  background: #fff;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  padding: 36px 40px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--brass-dark); margin: 0 0 16px;
+}
+.booking-heading {
+  font-family: var(--font-display); font-weight: 500;
+  font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.1;
+  margin: 0 0 10px; letter-spacing: -0.01em;
+}
+.booking-lede { color: var(--paper-text-lo); margin: 0 0 24px; font-size: 1rem; }
+.booking-step {
+  font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--brass-dark); margin: 34px 0 12px;
+}
+.booking-step:first-of-type { margin-top: 8px; }
+
+/* ---------- Organizer ---------- */
+.organizer {
+  display: flex; gap: 20px; align-items: flex-start;
+  border-bottom: 1px solid var(--paper-line); padding-bottom: 24px; margin-bottom: 8px;
+}
+.organizer-photo {
+  width: 92px; height: 92px; border-radius: 50%;
+  object-fit: cover; flex: 0 0 auto; border: 2px solid var(--paper-line);
+}
+.organizer-bio { color: var(--paper-text-lo); font-size: 0.95rem; margin: 0; }
+
+/* ---------- Meeting type ---------- */
+.meeting-type { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.meeting-type-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; margin: 0; }
+.meeting-type-duration {
+  font-family: var(--font-mono); font-size: 0.78rem; color: var(--verdigris);
+  border: 1px solid var(--verdigris); border-radius: var(--radius); padding: 3px 10px;
+}
+.meeting-type-desc { color: var(--paper-text-lo); font-size: 0.95rem; margin: 8px 0 0; }
+.meeting-type-location { margin: 10px 0 0; font-size: 0.95rem; }
+.meeting-type-location a { word-break: break-all; }
+
+/* ---------- Timezone ---------- */
+.tz-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.tz-label { font-family: var(--font-mono); font-size: 0.76rem; color: var(--paper-text-lo); }
+.tz-select, .field-input, .field-textarea {
+  font: inherit; color: var(--paper-text-hi);
+  background: var(--paper); border: 1px solid var(--paper-line);
+  border-radius: var(--radius); padding: 10px 12px; width: 100%;
+}
+.tz-select { width: auto; max-width: 100%; }
+
+/* ---------- Date picker ---------- */
+.month-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.month-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; margin: 0; }
+.month-nav {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; border: 1px solid var(--paper-line); color: var(--paper-text-hi);
+  border-radius: var(--radius); padding: 6px 12px; cursor: pointer; font: inherit;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.month-nav:hover, .month-nav:focus-visible { border-color: var(--brass); color: var(--brass-dark); }
+.month-nav:disabled { opacity: 0.35; cursor: default; }
+
+.date-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+  list-style: none; margin: 0; padding: 0;
+}
+.date-dow {
+  font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--paper-text-lo); text-align: center; padding: 4px 0;
+}
+.date-cell {
+  font-family: var(--font-mono); font-size: 0.86rem;
+  border: 1px solid var(--paper-line); border-radius: var(--radius);
+  background: #fff; color: var(--paper-text-lo); padding: 10px 0; text-align: center;
+  cursor: default; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.date-cell.is-available {
+  color: var(--paper-text-hi); cursor: pointer;
+}
+.date-cell.is-available:hover, .date-cell.is-available:focus-visible {
+  border-color: var(--brass); background: var(--paper-alt);
+}
+.date-cell.is-selected { background: var(--brass); border-color: var(--brass); color: var(--ink); }
+.date-cell.is-today { outline: 1px solid var(--brass); outline-offset: -1px; }
+
+/* ---------- Slots ---------- */
+.slot-list { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.slot-btn {
+  font-family: var(--font-mono); font-size: 0.9rem;
+  border: 1px solid var(--paper-line); border-radius: var(--radius);
+  background: #fff; color: var(--paper-text-hi); padding: 9px 18px; cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.slot-btn:hover, .slot-btn:focus-visible { border-color: var(--brass); background: var(--paper-alt); }
+.slot-btn.is-selected { background: var(--ink); border-color: var(--ink); color: var(--ink-text-hi); }
+.slot-empty { color: var(--paper-text-lo); font-size: 0.9rem; margin: 0; }
+.slot-date-note { font-family: var(--font-mono); font-size: 0.78rem; color: var(--paper-text-lo); margin: 0 0 14px; }
+
+/* ---------- Form ---------- */
+.booking-form .field { margin-bottom: 16px; }
+.field-label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
+.field-label .req { color: var(--brass-dark); }
+.field-hint { font-size: 0.8rem; color: var(--paper-text-lo); margin: 4px 0 0; }
+.guest-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.guest-row .field-input { flex: 1; }
+.guest-remove {
+  background: none; border: 1px solid var(--paper-line); color: var(--paper-text-lo);
+  border-radius: var(--radius); width: 34px; height: 34px; cursor: pointer; font-size: 1rem;
+}
+.guest-remove:hover { border-color: var(--brass-dark); color: var(--brass-dark); }
+.guest-add {
+  background: none; border: 0; color: var(--brass-dark); cursor: pointer;
+  font-size: 0.85rem; font-weight: 600; padding: 0; text-decoration: underline;
+}
+.honeypot { position: absolute; left: -9999px; top: -9999px; height: 0; width: 0; overflow: hidden; opacity: 0; }
+
+.btn {
+  display: inline-block; border: 0; text-decoration: none; padding: 13px 28px;
+  border-radius: var(--radius); font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.btn-primary { background: var(--brass); color: var(--ink); }
+.btn-primary:hover:not(:disabled) { background: #c29d68; transform: translateY(-1px); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- Summary / confirmation ---------- */
+.summary-card {
+  background: var(--paper-alt); border: 1px solid var(--paper-line);
+  border-radius: var(--radius); padding: 18px 22px; margin-bottom: 20px; font-size: 0.95rem;
+}
+.summary-card p { margin: 4px 0; }
+.summary-card .summary-k { font-family: var(--font-mono); font-size: 0.74rem; color: var(--brass-dark); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ---------- Status ---------- */
+.status { display: none; margin-top: 16px; padding: 12px 16px; border-radius: var(--radius); font-size: 0.9rem; }
+.status.is-visible { display: block; }
+.status-error { background: #F7E6E4; border: 1px solid #C96B5F; color: #7A2E24; }
+.status-info { background: var(--paper-alt); border: 1px solid var(--paper-line); color: var(--paper-text-lo); }
+
+.spinner { color: var(--paper-text-lo); font-size: 0.9rem; margin: 8px 0; }
+
+/* ---------- Footer ---------- */
+.site-footer { background: var(--ink); color: var(--ink-text-lo); padding: 26px 0; border-top: 1px solid var(--ink-line); }
+.footer-inner { display: flex; justify-content: space-between; font-size: 0.82rem; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- Focus / motion ---------- */
+.booking-body a:focus-visible, .booking-body button:focus-visible,
+.booking-body input:focus-visible, .booking-body select:focus-visible,
+.booking-body textarea:focus-visible {
+  outline: 2px solid var(--brass); outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+@media (max-width: 760px) {
+  .section-inner { padding: 0 20px; }
+  .booking-main { padding: 40px 0 64px; }
+  .booking-card { padding: 24px 20px; }
+  .date-grid { gap: 5px; }
+  .date-cell { padding: 9px 0; }
+}

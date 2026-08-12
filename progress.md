@@ -1,10 +1,10 @@
 # Eratotime — Build Progress
 
-## Current Phase: Phase 3 — CalDAV/Baïkal Read-Only Sync
+## Current Phase: Phase 4 — Public Booking Page
 
-### Status: Code built + tested locally; live sync needs the .env credentials step
+### Status: Built + tested locally (availability rendering done; submission = Phase 5)
 
-Phases 0–2 are complete locally. Baïkal is **installed** on Hostinger (calendar URL verified live, Basic auth confirmed) and Phase 3's code is built and unit-tested. The remaining step is credential wiring: put the CalDAV password in `.env`, create `config.php`, run `bin/setup_caldav.php`, then confirm `cron/sync_calendars.php` against the deployment database.
+Phases 0–3 complete (scaffold, isolation tests, availability engine, CalDAV/Baïkal live sync). Phase 4's branded booking page + slots API are built, unit-tested, and verified over HTTP at `http://localhost/eratotime/t/meertec/book/30-min`. The form already posts the Phase 5 shape to `api/requests.php`, which is the next thing to build.
 
 ### Model note (2026-08)
 Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-requirements.md` revision note and section 1.6. The app collects requests + soft-holds slots + notifies the organizer, who creates calendar events manually. **No calendar write path, no `.ics`, no tokenized reschedule/cancel** in v1. The Gmail address (`meertec.ltd@gmail.com`) must never appear in anything the app sends. `db/eratotime_migration.sql` is the authoritative schema.
@@ -77,12 +77,18 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - **Do NOT** build any `.ics`/iTIP invite *sent to invitees*, or derive `ORGANIZER` from anything — the app builds no calendar invite; the SMTP `From:` always comes from `global_settings.mailbox_destination` (`stephen@meertec.ltd`). The only `.ics` the app produces is the organizer's own calendar-import file (Phase 5).
 
 ### Phase 4 — Public Booking Page
-- **Status:** Not started
-- **Prerequisites:** Phases 0–3 complete
-- **Started:**
-- **Completed:**
+- **Status:** Built + tested locally (availability rendering; submission wiring is Phase 5)
+- **Prerequisites:** Phases 0–3 complete — real calendar sync working
+- **Started:** 2026-08-12
+- **Completed:** (rendering) 2026-08-12
 - **Notes:**
-  - Availability rendering only in this phase (no submission yet). Includes ALTCHA widget + honeypot on the form and the iframe `postMessage` resize handshake (requirements §2.7).
+  - Route `/t/{slug}/book/{slug}` → `book.php` (`.htaccess` rewrite, path-parse fallback). Brand-matched to meertec.ltd: Ink/Paper/Brass/Verdigris tokens, Fraunces + IBM Plex, round-logo masthead (`css/eratotime.css`).
+  - `api/slots.php` — `month=` returns dates with open slots; `date=` returns slots + `utc_slots` (client renders in invitee tz). Availability from the local cache (blockouts/soft-holds), fail-closed on stale sync sources (verified: 30-min grid 09:00–17:00, 60-min 09:00–16:30, DST-correct UTC).
+  - `js/booking.js` (ES module) — organizer bio/photo, tz detect + override dropdown, month picker (past/min-notice/closed dates disabled), slot buttons in invitee tz, form (name/email/custom questions/guests/honeypot). Submits to `api/requests.php` (Phase 5) with graceful fallback notice.
+  - `js/embed-resize.js` — postMessage iframe height handshake (spec 2.7). Page is standalone (no parent-asset dependency).
+  - `availability_context_lib.php` — DB→engine ctx assembly (working hours/overrides/blockouts/soft-holds/counts/caps/stale), UTC→organizer-tz per-date block conversion; shared with Phase 5/6.
+  - Tests: 72 total / 219 assertions green (added AvailabilityContextTest for UTC→org-tz conversion edge cases).
+  - **Phase 5 handoff:** `api/requests.php` (POST) is the only missing piece — booking.js already posts the expected shape (tenant, type, slot_utc, name, email, timezone, questions[], guests[], website honeypot).
 
 ### Phase 5 — Request Submission Flow
 - **Status:** Not started
