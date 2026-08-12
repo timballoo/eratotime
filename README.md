@@ -2,7 +2,7 @@
 
 Personal, self-hosted, Calendly-style **request** tool. Invitees pick a slot; the app holds it (soft-hold), emails the organizer, and the organizer creates the calendar event manually. No calendar-write integration, no `.ics`, no tokenized reschedule/cancel in v1.
 
-The authoritative build spec is `docs/eratotime-requirements.md` (in the workspace parent of this repo) — including the request-submission model, the `stephen@meertec.ltd` vs `meertec.ltd@gmail.com` identity decision, and the Easy!Appointments review in Appendix B. The schema in `db/eratotime_migration.sql` is authoritative over any summary in this file.
+The authoritative build spec is `docs/eratotime-requirements.md` — including the request-submission model, the `stephen@meertec.ltd` vs `meertec.ltd@gmail.com` identity decision, and the Easy!Appointments review in Appendix B. Build progress lives in `progress.md`. The schema in `db/eratotime_migration.sql` is authoritative over any summary in this file.
 
 ## Status
 
