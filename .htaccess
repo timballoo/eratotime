@@ -4,6 +4,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^t/([^/]+)/book/([^/]+)/?$ book.php?tenant=$1&type=$2 [L,QSA]
+
+    # --- Deny CLI/private directories (bin, cron, db, tests) if the app is
+    # deployed inside a web-served directory. api/ and uploads/ stay reachable.
+    RewriteRule ^(bin|cron|db|tests)(/|$) - [F,L]
 </IfModule>
 
 # --- Web-serve guard --------------------------------------------------------
