@@ -5,6 +5,9 @@ config.local.php
 *.key
 /eratotime-keys/
 
+# Dev-only local preview (exposes real seed data; must never deploy)
+preview.php
+
 # Composer
 /vendor/
 
