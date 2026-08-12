@@ -1,10 +1,10 @@
 # Eratotime — Build Progress
 
-## Current Phase: Phase 6 — Admin Panel
+## Current Phase: Phase 7 — Cron Hardening & Go-Live Checklist
 
-### Status: Built + tested locally (Phase 7 = cron hardening & go-live)
+### Status: Code complete (all 3 crons written + tested); deployment on Hostinger pending
 
-Phases 0–5 complete. Phase 6's admin panel is built and HTTP-smoke-tested (login, dashboard, four-state availability grid with save/load round-trip, meeting-type CRUD, request fulfil/cancel, calendars + sync-now, settings/photo). 98 tests / 370 assertions green. Remaining: `cron/cleanup.php`, real secrets in production `.env`/`config.php`, cron scheduling on Hostinger, and the §8 go-live matrix.
+Phases 0–6 complete. The full request tool works locally end-to-end, **101 tests / 393 assertions green**. The only remaining work is on the live box: deploy + `.env`/`config.php` secrets, migration, `bin/setup_caldav.php`, schedule the 3 crons, and run the §8 go-live matrix against `www.meertec.ltd`.
 
 ### Model note (2026-08)
 Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-requirements.md` revision note and section 1.6. The app collects requests + soft-holds slots + notifies the organizer, who creates calendar events manually. **No calendar write path, no `.ics`, no tokenized reschedule/cancel** in v1. The Gmail address (`meertec.ltd@gmail.com`) must never appear in anything the app sends. `db/eratotime_migration.sql` is the authoritative schema.
@@ -117,10 +117,12 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - HTTP smoke-tested: login 200, dashboard/grid/MT/requests/settings/sources all 200, grid template save + reload round-trip correct. 98 tests / 370 assertions green.
   - **Handoff to Phase 7:** schedule `cron/sync_calendars.php`, `cron/retry_notifications.php`, and `cron/cleanup.php` (cleanup.php is still to be written) on Hostinger; run the §8 manual test matrix; HTTPS + .htaccess verified on the live domain; deploy .env/config.php with real secrets.
 
-### Phase 7 — Cron Hardening & Go-Live
-- **Status:** Not started
+### Phase 7 — Cron Hardening & Go-Live Checklist
+- **Status:** Code complete (all three crons written + tested); **deployment pending** (live Hostinger setup)
 - **Prerequisites:** Phases 0–6 complete
-- **Started:**
-- **Completed:**
+- **Started:** 2026-08-12
+- **Completed:** (code) 2026-08-12
 - **Notes:**
-  - Three crons: `sync_calendars.php`, `retry_notifications.php`, `cleanup.php` (request-log retention + soft-hold expiry sweep).
+  - All three crons exist: `sync_calendars.php` (Phase 3), `retry_notifications.php` (Phase 5), `cleanup.php` (this phase: expires stale soft-holds, purges terminal requests past `request_log_retention_days`, never touches active holds; cascades outbox). 101 tests / 393 assertions green.
+  - **Remaining (external/manual, needs the live Hostinger box):** deploy the repo + `.env` + `config.php` with real secrets; run the migration; `bin/setup_caldav.php`; schedule the 3 crons (every 10 min sync; 5 min retry; daily cleanup); HTTPS + `.htaccess` verified; full §8 manual test matrix against `www.meertec.ltd`; the booking page iframe-embedded on the business site (spec 2.7).
+  - Config for the live box: `ERATO_CSRF_KEY`, `ERATO_ALTCHA_HMAC_KEY`, `ERATO_SMTP_*`, `ERATO_CALDAV_*` all set; admin passphrase hash in `config.php`.
