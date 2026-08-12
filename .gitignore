@@ -1,0 +1,29 @@
+# Secrets & local config — never commit
+config.php
+config.local.php
+.env
+*.key
+/eratotime-keys/
+
+# Composer
+/vendor/
+
+# Test/runtime artifacts
+.phpunit.result.cache
+.phpunit.cache/
+/logs/
+/cache/
+
+# Uploads (organizer photos are content, not code)
+/uploads/*.png
+/uploads/*.jpg
+/uploads/*.jpeg
+/uploads/*.webp
+/uploads/*/*.png
+/uploads/*/*.jpg
+/uploads/*/*.jpeg
+/uploads/*/*.webp
+
+# OS cruft
+Thumbs.db
+.DS_Store
