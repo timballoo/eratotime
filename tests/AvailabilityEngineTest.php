@@ -367,4 +367,35 @@ final class AvailabilityEngineTest extends TestCase
     {
         self::assertNull(availability_day_schedule(6, $this->workdayFixture(), '2026-08-15', []));
     }
+
+    public function testMultiRangeWorkingHoursProduceSplitSlots(): void
+    {
+        // Monday open 09:00-12:00 AND 14:00-17:00 (a blocked internal span).
+        $workingHours = [
+            ['day_of_week' => 1, 'start_time' => '09:00:00', 'end_time' => '12:00:00'],
+            ['day_of_week' => 1, 'start_time' => '14:00:00', 'end_time' => '17:00:00'],
+        ];
+        $ranges = availability_day_open_ranges(1, $workingHours, '2026-08-17', []);
+        self::assertSame(
+            [['start' => '09:00', 'end' => '12:00'], ['start' => '14:00', 'end' => '17:00']],
+            $ranges
+        );
+        $r = availability_day($this->ctx([
+            'date' => '2026-08-17',
+            'working_hours' => $workingHours,
+        ]));
+        // 09:00..11:30 (6 slots) + 14:00..16:30 (6 slots) — lunch gap respected.
+        self::assertSame(['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'], $r['slots']);
+        self::assertNotContains('12:00', $r['slots']);
+    }
+
+    public function testMultiOverrideRangesMerge(): void
+    {
+        $overrides = [
+            ['date' => '2026-08-15', 'is_blocked' => 0, 'start_time' => '09:00:00', 'end_time' => '10:30:00'],
+            ['date' => '2026-08-15', 'is_blocked' => 0, 'start_time' => '10:00:00', 'end_time' => '12:00:00'],
+        ];
+        $ranges = availability_day_open_ranges(6, [], '2026-08-15', $overrides);
+        self::assertSame([['start' => '09:00', 'end' => '12:00']], $ranges);
+    }
 }

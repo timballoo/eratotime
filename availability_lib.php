@@ -148,44 +148,82 @@ if (!function_exists('availability_parse_time')) {
     }
 
     /**
-     * Resolve layer 1 (template) then layer 2 (overrides) into the day's window.
+     * Resolve layer 1 (template) then layer 2 (overrides) into the day's open
+     * ranges. Supports MULTIPLE ranges per day (several working_hours rows for
+     * one day_of_week, several is_blocked=0 override rows for one date), so the
+     * admin grid can represent blocked internal cells. Ranges are merged.
      *
      * @param int $dayOfWeek 0=Sunday .. 6=Saturday (matches working_hours column)
      * @param array $workingHours rows: ['day_of_week'=>int,'start_time'=>str,'end_time'=>str]
      * @param string $date 'Y-m-d'
      * @param array $overrides rows: ['date'=>'Y-m-d','is_blocked'=>int,'start_time'=>?str,'end_time'=>?str]
      *
-     * @return array|null ['start'=>'HH:MM','end'=>'HH:MM'] or null if the day is closed.
+     * @return array|null list of ['start'=>'HH:MM','end'=>'HH:MM'] or null if the day is closed.
      */
-    function availability_day_schedule(int $dayOfWeek, array $workingHours, string $date, array $overrides): ?array
+    function availability_day_open_ranges(int $dayOfWeek, array $workingHours, string $date, array $overrides): ?array
     {
-        foreach ($overrides as $ov) {
-            if ((string) ($ov['date'] ?? '') === $date) {
-                if (!empty($ov['is_blocked'])) {
+        $ovRows = array_values(array_filter($overrides, fn($o) => (string) ($o['date'] ?? '') === $date));
+        if ($ovRows !== []) {
+            // Any full-block override row closes the whole day.
+            foreach ($ovRows as $o) {
+                if (!empty($o['is_blocked'])) {
                     return null;
                 }
-                $s = $ov['start_time'] ?? null;
-                $e = $ov['end_time'] ?? null;
+            }
+            $ranges = [];
+            foreach ($ovRows as $o) {
+                $s = $o['start_time'] ?? null;
+                $e = $o['end_time'] ?? null;
                 if ($s !== null && $e !== null && $s !== '' && $e !== '') {
                     $sM = availability_parse_time((string) $s);
                     $eM = availability_parse_time((string) $e);
                     if ($sM !== null && $eM !== null && $eM > $sM) {
-                        return ['start' => availability_format_time($sM), 'end' => availability_format_time($eM)];
+                        $ranges[] = [$sM, $eM];
                     }
                 }
-                return null; // override present but not a valid open window -> closed
             }
+            if ($ranges === []) {
+                return null; // override present but no valid open window -> closed
+            }
+            $merged = availability_merge_intervals($ranges);
+            return array_map(
+                fn($iv) => ['start' => availability_format_time($iv[0]), 'end' => availability_format_time($iv[1])],
+                $merged
+            );
         }
+        $ranges = [];
         foreach ($workingHours as $wh) {
             if ((int) ($wh['day_of_week'] ?? -1) === $dayOfWeek) {
                 $sM = availability_parse_time((string) $wh['start_time']);
                 $eM = availability_parse_time((string) $wh['end_time']);
                 if ($sM !== null && $eM !== null && $eM > $sM) {
-                    return ['start' => availability_format_time($sM), 'end' => availability_format_time($eM)];
+                    $ranges[] = [$sM, $eM];
                 }
             }
         }
-        return null;
+        if ($ranges === []) {
+            return null;
+        }
+        $merged = availability_merge_intervals($ranges);
+        return array_map(
+            fn($iv) => ['start' => availability_format_time($iv[0]), 'end' => availability_format_time($iv[1])],
+            $merged
+        );
+    }
+
+    /**
+     * Legacy single-window view of a day's schedule (first open .. last open).
+     * Kept for display purposes; the engine uses availability_day_open_ranges().
+     *
+     * @return array|null ['start'=>'HH:MM','end'=>'HH:MM'] or null if closed.
+     */
+    function availability_day_schedule(int $dayOfWeek, array $workingHours, string $date, array $overrides): ?array
+    {
+        $ranges = availability_day_open_ranges($dayOfWeek, $workingHours, $date, $overrides);
+        if ($ranges === null || $ranges === []) {
+            return null;
+        }
+        return ['start' => $ranges[0]['start'], 'end' => $ranges[count($ranges) - 1]['end']];
     }
 
     /**
@@ -281,15 +319,16 @@ if (!function_exists('availability_parse_time')) {
         }
 
         $dayOfWeek = (int) date('w', strtotime($date)); // 0=Sunday..6=Saturday
-        $schedule = availability_day_schedule(
+        $ranges = availability_day_open_ranges(
             $dayOfWeek,
             $ctx['working_hours'] ?? [],
             $date,
             $ctx['overrides'] ?? []
         );
-        if ($schedule === null) {
+        if ($ranges === null || $ranges === []) {
             return $empty;
         }
+        $schedule = ['start' => $ranges[0]['start'], 'end' => $ranges[count($ranges) - 1]['end']];
 
         // max-horizon + past check, day-granular in the organizer's timezone:
         // dates up to and including now+horizonDays are bookable (equality ok).
@@ -310,7 +349,7 @@ if (!function_exists('availability_parse_time')) {
             $ctx['blockouts'] ?? [],
             $ctx['soft_holds'] ?? []
         );
-        $free = availability_subtract([$schedule], $busy);
+        $free = availability_subtract($ranges, $busy);
 
         $slots = [];
         foreach (availability_fit_slots($free, $duration, $bufBefore, $bufAfter, $granularity) as $startMin) {

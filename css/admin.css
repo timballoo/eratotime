@@ -1,0 +1,88 @@
+/* admin.css — Eratotime admin panel styles (on top of eratotime.css tokens). */
+
+.admin-main { padding: 40px 0 72px; }
+.admin-wrap { max-width: var(--max); }
+.admin-top-actions { display: flex; align-items: center; gap: 14px; }
+
+.admin-nav {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 24px;
+  border-bottom: 1px solid var(--paper-line); padding-bottom: 10px;
+}
+.admin-nav a {
+  font-family: var(--font-mono); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--paper-text-lo); text-decoration: none; padding: 8px 14px; border-radius: var(--radius);
+}
+.admin-nav a:hover { color: var(--brass-dark); }
+.admin-nav a.is-active { background: var(--ink); color: var(--ink-text-hi); }
+
+.admin-metrics { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.badge-dash {
+  font-family: var(--font-mono); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em;
+  background: var(--paper-alt); border: 1px solid var(--paper-line); color: var(--paper-text-lo);
+  border-radius: var(--radius); padding: 3px 9px; margin-left: 6px;
+}
+.badge-dash.badge-on { background: rgba(76,122,109,0.15); color: var(--verdigris); border-color: var(--verdigris); }
+.badge-dash.badge-pending { background: rgba(176,141,87,0.15); color: var(--brass-dark); border-color: var(--brass); }
+.badge-dash.badge-cancelled, .badge-dash.badge-expired { opacity: 0.6; }
+
+.admin-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid var(--paper-line);
+}
+.admin-row-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.muted { color: var(--paper-text-lo); font-size: 0.85rem; }
+
+.btn-small { padding: 8px 14px; font-size: 0.85rem; }
+.btn-ghost { border: 1px solid var(--paper-line); color: var(--paper-text-hi); background: transparent; }
+.btn-ghost:hover { border-color: var(--brass); color: var(--brass-dark); }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 20px; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+
+.q-req { display: inline-flex; align-items: center; gap: 4px; font-size: 0.82rem; white-space: nowrap; }
+
+/* --- Availability grid --- */
+.grid-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: 18px 0 10px;
+}
+.seg { display: inline-flex; border: 1px solid var(--paper-line); border-radius: var(--radius); overflow: hidden; }
+.seg-btn {
+  background: #fff; border: 0; padding: 9px 14px; font: inherit; font-size: 0.85rem; cursor: pointer; color: var(--paper-text-lo);
+}
+.seg-btn.is-active { background: var(--ink); color: var(--ink-text-hi); }
+.grid-nav { display: flex; align-items: center; gap: 8px; }
+.grid-week-label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--paper-text-lo); }
+
+.grid-wrap { overflow-x: auto; margin: 12px 0 18px; border: 1px solid var(--paper-line); }
+.grid-head { display: grid; grid-template-columns: 64px repeat(7, 1fr); background: var(--paper-alt); }
+.grid-rows { display: grid; }
+.grid-rows .grid-time, .grid-rows .grid-cell { display: none; }
+.grid-rows { grid-template-columns: 64px repeat(7, 1fr); }
+.grid-corner, .grid-dow {
+  font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--paper-text-lo); padding: 8px 6px; text-align: center; border-right: 1px solid var(--paper-line); border-bottom: 1px solid var(--paper-line);
+}
+.grid-time {
+  font-family: var(--font-mono); font-size: 0.68rem; color: var(--paper-text-lo);
+  padding: 6px; text-align: right; border-right: 1px solid var(--paper-line); border-bottom: 1px solid var(--paper-line);
+  line-height: 18px;
+}
+.grid-cell {
+  min-height: 30px; cursor: pointer; border-right: 1px solid var(--paper-line); border-bottom: 1px solid var(--paper-line);
+  transition: background 0.1s ease;
+}
+.grid-cell.cell-open { background: #fff; }
+.grid-cell.cell-open:hover { background: var(--paper-alt); }
+.grid-cell.cell-blocked { background: var(--paper-alt); }
+.grid-cell.cell-busy {
+  background: repeating-linear-gradient(135deg, var(--paper-alt), var(--paper-alt) 5px, var(--paper-line) 5px, var(--paper-line) 10px);
+  cursor: not-allowed;
+}
+.grid-cell.cell-hold {
+  background: #fff;
+  background-image: radial-gradient(circle, var(--brass) 2px, transparent 2.5px);
+  background-size: 10px 10px;
+  cursor: not-allowed;
+}
+
+.admin-login-card { max-width: 420px; margin: 0 auto; }

@@ -28,6 +28,7 @@
             "security_lib.php",
             "request_lib.php",
             "notify_lib.php",
+            "admin_lib.php",
             "providers/caldav_provider.php"
         ]
     },

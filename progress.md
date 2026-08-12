@@ -1,10 +1,10 @@
 # Eratotime — Build Progress
 
-## Current Phase: Phase 5 — Request Submission Flow
+## Current Phase: Phase 6 — Admin Panel
 
-### Status: Built + tested locally; round-trip verified over HTTP
+### Status: Built + tested locally (Phase 7 = cron hardening & go-live)
 
-Phases 0–4 complete. Phase 5's submission flow is built and verified end-to-end locally (security guards → transaction → soft-hold → outbox; 91 tests green). Remaining for go-live: real SMTP creds in `.env` (live emails), a real `ERATO_ALTCHA_HMAC_KEY` + `ERATO_CSRF_KEY` in production, and Phase 6 (admin panel).
+Phases 0–5 complete. Phase 6's admin panel is built and HTTP-smoke-tested (login, dashboard, four-state availability grid with save/load round-trip, meeting-type CRUD, request fulfil/cancel, calendars + sync-now, settings/photo). 98 tests / 370 assertions green. Remaining: `cron/cleanup.php`, real secrets in production `.env`/`config.php`, cron scheduling on Hostinger, and the §8 go-live matrix.
 
 ### Model note (2026-08)
 Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-requirements.md` revision note and section 1.6. The app collects requests + soft-holds slots + notifies the organizer, who creates calendar events manually. **No calendar write path, no `.ics`, no tokenized reschedule/cancel** in v1. The Gmail address (`meertec.ltd@gmail.com`) must never appear in anything the app sends. `db/eratotime_migration.sql` is the authoritative schema.
@@ -105,13 +105,17 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - **Handoff to Phase 6:** admin panel (meeting type CRUD, four-state weekly grid, request log with mark fulfilled/cancelled, calendar connection status, failed-notification warning, organizer profile). The fulfil/cancel actions just flip `request_log.status` and end the soft-hold's blocking role — the engine already ignores non-pending rows.
 
 ### Phase 6 — Admin Panel
-- **Status:** Not started
-- **Prerequisites:** Phases 0–5 complete
-- **Started:**
-- **Completed:**
+- **Status:** Built + tested locally (HTTP smoke-tested: login, dashboard, grid save/load, all CRUD)
+- **Prerequisites:** Phases 4–5 complete
+- **Started:** 2026-08-12
+- **Completed:** (code) 2026-08-12
 - **Notes:**
-  - Four-state weekly grid: template / overrides / read-only synced busy / read-only pending soft-holds (requirements §2.6).
-  - Request log with **mark fulfilled / mark cancelled** actions — the organizer's close-the-loop workflow (§2.4).
+  - `admin.php` + `css/admin.css` + `js/admin.js` — single-passphrase login (config['admin'], rate-limited 5/5min, session + CSRF), nav: Dashboard / Availability / Meeting types / Requests / Calendars / Settings.
+  - `admin_lib.php` — auth, weekly grid load/save (template mode rewrites `working_hours` per day; override mode rewrites `availability_overrides` per date, incl. full-day 'blocked'), request fulfil/cancel, meeting-type CRUD + questions, settings/profile/photo, sources list + sync-now, dashboard warnings (failed notifications, stale sync fail-closed).
+  - **Engine upgrade:** `availability_day_open_ranges()` — multi-range days (blocked internal cells) supported by the engine; grid editor can express them. Backward-compatible (29→31 availability tests).
+  - `api/admin/*`: `_guard.php` (auth+csrf+JSON), `availability_grid.php`, `requests.php`, `meeting_types.php`, `settings.php` (incl. photo upload), `sources.php`, `dashboard.php`, `login.php`.
+  - HTTP smoke-tested: login 200, dashboard/grid/MT/requests/settings/sources all 200, grid template save + reload round-trip correct. 98 tests / 370 assertions green.
+  - **Handoff to Phase 7:** schedule `cron/sync_calendars.php`, `cron/retry_notifications.php`, and `cron/cleanup.php` (cleanup.php is still to be written) on Hostinger; run the §8 manual test matrix; HTTPS + .htaccess verified on the live domain; deploy .env/config.php with real secrets.
 
 ### Phase 7 — Cron Hardening & Go-Live
 - **Status:** Not started
