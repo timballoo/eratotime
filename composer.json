@@ -25,6 +25,9 @@
             "crypto_lib.php",
             "calendar_sync_lib.php",
             "availability_context_lib.php",
+            "security_lib.php",
+            "request_lib.php",
+            "notify_lib.php",
             "providers/caldav_provider.php"
         ]
     },

@@ -32,7 +32,17 @@ return [
     // ALTCHA proof-of-work HMAC key (spec 4.2 / Appendix B footgun): generate
     // ONCE at install time (e.g. bin2hex(random_bytes(32))) and persist here.
     // Regenerating per-request makes challenges unverifiable (Easy!Appointments bug).
+    // ALTCHA is active only while this key is set.
     'altcha_hmac_key' => getenv('ERATO_ALTCHA_HMAC_KEY') ?: '',
+
+    // Stateless CSRF signing secret for the booking form (spec 4.2).
+    'csrf_secret' => getenv('ERATO_CSRF_KEY') ?: '',
+
+    // Writable dir for the file-cache rate limiter (not web-served).
+    'runtime_dir' => getenv('ERATO_RUNTIME_DIR') ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'eratotime',
+
+    // CallMeBot API key for the optional WhatsApp notification (2.5).
+    'whatsapp_api_key' => getenv('ERATO_WHATSAPP_API_KEY') ?: '',
 
     'admin' => [
         'username'      => 'admin',

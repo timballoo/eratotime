@@ -65,7 +65,7 @@ if (!function_exists('availability_ctx_load')) {
         $blockoutRows = $blStmt->fetchAll(PDO::FETCH_ASSOC);
 
         $shStmt = $pdo->prepare(
-            "SELECT requested_start_utc, requested_end_utc
+            "SELECT requested_start_utc AS start_utc, requested_end_utc AS end_utc
                FROM request_log
               WHERE tenant_id = ? AND status = 'pending' AND soft_hold_expires_at > UTC_TIMESTAMP()"
         );

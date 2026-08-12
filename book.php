@@ -13,6 +13,7 @@
  */
 
 require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/security_lib.php';
 
 $config = require __DIR__ . '/config.php';
 
@@ -75,6 +76,8 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
                     'photo' => $settings['organizer_photo_path'] ?? null,
                 ],
                 'questions' => $questions,
+                'csrf' => security_csrf_issue((string) ($config['csrf_secret'] ?? '')),
+                'altcha_enabled' => altcha_enabled($config),
             ];
         }
     }
@@ -126,6 +129,9 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
 
 <script src="js/embed-resize.js"></script>
 <?php if ($payload !== null): ?>
+<?php if ($payload['altcha_enabled']): ?>
+<script src="https://cdn.jsdelivr.net/npm/altcha@0/altcha.min.js" defer></script>
+<?php endif; ?>
 <script type="module" src="js/booking.js"></script>
 <?php endif; ?>
 </body>

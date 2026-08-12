@@ -119,6 +119,7 @@ function render() {
             <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
           </div>
           <div id="summary"></div>
+          ${CONFIG.altcha_enabled ? '<altcha-widget challenge-url="api/altcha.php" name="altcha"></altcha-widget>' : ''}
           <button type="submit" class="btn btn-primary" id="submit-btn">Request this time</button>
         </form>
       </div>`;
@@ -330,6 +331,8 @@ async function onSubmit(e) {
         })),
         guests: Array.from(document.querySelectorAll('input[name="guest"]')).map(i => i.value.trim()).filter(v => v !== ''),
         website: document.getElementById('f-website').value.trim(),
+        csrf: CONFIG.csrf,
+        altcha: CONFIG.altcha_enabled ? (document.querySelector('altcha-widget')?.value || '') : '',
     };
     if (!data.name || !data.email) {
         setStatus('Please enter your name and email.', 'error');

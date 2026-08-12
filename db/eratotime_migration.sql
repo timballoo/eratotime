@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS request_log (
     meeting_type_id     BIGINT UNSIGNED NULL,
     invitee_name        VARCHAR(191) NOT NULL,
     invitee_email       VARCHAR(191) NOT NULL,
+    invitee_timezone    VARCHAR(64) NULL,
     guest_emails        JSON NULL,
     requested_start_utc DATETIME NOT NULL,
     requested_end_utc   DATETIME NOT NULL,
@@ -214,6 +215,7 @@ CREATE TABLE IF NOT EXISTS notification_outbox (
     request_log_id BIGINT UNSIGNED NOT NULL,
     channel        ENUM('email','whatsapp') NOT NULL,
     recipient      VARCHAR(191) NOT NULL,  -- email address or WhatsApp number
+    template       VARCHAR(64) NOT NULL DEFAULT 'email',  -- invitee_confirmation | organizer_request | whatsapp_organizer
     status         ENUM('pending','sent','failed') NOT NULL DEFAULT 'pending',
     attempts       SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     last_attempt_at DATETIME NULL,

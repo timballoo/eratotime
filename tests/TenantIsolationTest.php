@@ -85,7 +85,7 @@ final class TenantIsolationTest extends TestCase
 
         $pdo->exec("INSERT INTO request_log (tenant_id, meeting_type_id, invitee_name, invitee_email, requested_start_utc, requested_end_utc, status, soft_hold_expires_at) VALUES ($b, $mtb, 'Fixture Person', 'fixture@example.com', '2026-08-12 09:00:00', '2026-08-12 09:30:00', 'pending', '2026-08-13 09:00:00')");
         $reqB = (int) $pdo->query("SELECT id FROM request_log WHERE tenant_id = $b LIMIT 1")->fetchColumn();
-        $pdo->exec("INSERT INTO notification_outbox (tenant_id, request_log_id, channel, recipient, status) VALUES ($b, $reqB, 'email', 'fixture@example.com', 'pending')");
+        $pdo->exec("INSERT INTO notification_outbox (tenant_id, request_log_id, channel, recipient, template, status) VALUES ($b, $reqB, 'email', 'fixture@example.com', 'invitee_confirmation', 'pending')");
         $pdo->exec("INSERT INTO activity_log (tenant_id, event_type, detail) VALUES ($b, 'fixture_event', '{}')");
 
         return ['tenant_a' => $a, 'tenant_b' => $b, 'name' => $name];

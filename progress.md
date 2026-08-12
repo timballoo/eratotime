@@ -1,10 +1,10 @@
 # Eratotime — Build Progress
 
-## Current Phase: Phase 4 — Public Booking Page
+## Current Phase: Phase 5 — Request Submission Flow
 
-### Status: Built + tested locally (availability rendering done; submission = Phase 5)
+### Status: Built + tested locally; round-trip verified over HTTP
 
-Phases 0–3 complete (scaffold, isolation tests, availability engine, CalDAV/Baïkal live sync). Phase 4's branded booking page + slots API are built, unit-tested, and verified over HTTP at `http://localhost/eratotime/t/meertec/book/30-min`. The form already posts the Phase 5 shape to `api/requests.php`, which is the next thing to build.
+Phases 0–4 complete. Phase 5's submission flow is built and verified end-to-end locally (security guards → transaction → soft-hold → outbox; 91 tests green). Remaining for go-live: real SMTP creds in `.env` (live emails), a real `ERATO_ALTCHA_HMAC_KEY` + `ERATO_CSRF_KEY` in production, and Phase 6 (admin panel).
 
 ### Model note (2026-08)
 Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-requirements.md` revision note and section 1.6. The app collects requests + soft-holds slots + notifies the organizer, who creates calendar events manually. **No calendar write path, no `.ics`, no tokenized reschedule/cancel** in v1. The Gmail address (`meertec.ltd@gmail.com`) must never appear in anything the app sends. `db/eratotime_migration.sql` is the authoritative schema.
@@ -91,13 +91,18 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - **Phase 5 handoff:** `api/requests.php` (POST) is the only missing piece — booking.js already posts the expected shape (tenant, type, slot_utc, name, email, timezone, questions[], guests[], website honeypot).
 
 ### Phase 5 — Request Submission Flow
-- **Status:** Not started
+- **Status:** Built + tested locally (round-trip verified over HTTP; live SMTP still to configure)
 - **Prerequisites:** Phase 4 complete
-- **Started:**
-- **Completed:**
+- **Started:** 2026-08-12
+- **Completed:** (code) 2026-08-12
 - **Notes:**
-  - **Definition-of-Done additions (v2):** no `.ics`/iTIP attachment and no calendar event creation — verify instead that (a) the confirmation email's `From:` header reads `stephen@meertec.ltd`, (b) `meertec.ltd@gmail.com` appears nowhere in any email, page, or link the app produces, and (c) the Google Calendar quick-add link in the organizer notification email is correct (right times, invitee, location; no Gmail address in it).
-  - Submission runs in a transaction: server-side availability re-check → `request_log` write (soft-hold) → `notification_outbox` queue (invitee email, organizer email, optional WhatsApp). Rate-limited + ALTCHA-verified (requirements §4.2).
+  - `request_lib.php` — `request_submit()`: transaction with per-tenant `FOR UPDATE` serialization, availability re-check, `request_log` insert (soft-hold = `request_hold_hours`), `notification_outbox` queue (invitee_confirmation + organizer_request + optional whatsapp_organizer). Unique key blocks identical duplicates.
+  - `api/requests.php` — transport guards first (spec 4.2): per-IP file-cache rate limit (10/10min), honeypot, stateless HMAC CSRF, ALTCHA (when enabled). `api/altcha.php` serves the challenge; booking page issues CSRF and loads the ALTCHA widget when `ERATO_ALTCHA_HMAC_KEY` is set.
+  - `notify_lib.php` — PHPMailer/SMTP (dev mode = no-op when no host); subject prefixes per 2.5 (`[Eratotime Request] …`, `[Eratotime] Confirmation — …`); organizer email carries an **`.ics` import file** (SUMMARY `Eratotime: {type} — {invitee}`, DTSTART/DTEND UTC, **LOCATION = fixed Meet link**, answers in DESCRIPTION) built with Sabre/VObject; WhatsApp via CallMeBot when key set; outbox send/backoff/retry.
+  - `cron/retry_notifications.php` — retries pending outbox with backoff; marks failed past the window.
+  - Migration: `request_log.invitee_timezone`, `notification_outbox.template` (default 'email').
+  - **Round-trip verified over HTTP** (`api/requests.php`): request → pending row + soft-hold active + both outbox rows 'sent' (dev mode). 91 tests / 270 assertions green.
+  - **Handoff to Phase 6:** admin panel (meeting type CRUD, four-state weekly grid, request log with mark fulfilled/cancelled, calendar connection status, failed-notification warning, organizer profile). The fulfil/cancel actions just flip `request_log.status` and end the soft-hold's blocking role — the engine already ignores non-pending rows.
 
 ### Phase 6 — Admin Panel
 - **Status:** Not started
