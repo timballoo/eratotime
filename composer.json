@@ -20,7 +20,11 @@
     "autoload": {
         "files": [
             "availability_lib.php",
-            "tenant_lib.php"
+            "tenant_lib.php",
+            "env.php",
+            "crypto_lib.php",
+            "calendar_sync_lib.php",
+            "providers/caldav_provider.php"
         ]
     },
     "autoload-dev": {

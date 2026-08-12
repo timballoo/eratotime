@@ -2,9 +2,9 @@
 
 ## Current Phase: Phase 3 — CalDAV/Baïkal Read-Only Sync
 
-### Status: Blocked on external setup (Baïkal install on Hostinger)
+### Status: Code built + tested locally; live sync needs the .env credentials step
 
-Phase 0 (scaffold), Phase 1 (tenant isolation tests), and Phase 2 (availability engine) are complete **locally**. Phase 3 is gated on the Baïkal install + `stephen@meertec.ltd` calendar setup on Hostinger — the calendar-of-record decision itself is resolved (Appendix A).
+Phases 0–2 are complete locally. Baïkal is **installed** on Hostinger (calendar URL verified live, Basic auth confirmed) and Phase 3's code is built and unit-tested. The remaining step is credential wiring: put the CalDAV password in `.env`, create `config.php`, run `bin/setup_caldav.php`, then confirm `cron/sync_calendars.php` against the deployment database.
 
 ### Model note (2026-08)
 Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-requirements.md` revision note and section 1.6. The app collects requests + soft-holds slots + notifies the organizer, who creates calendar events manually. **No calendar write path, no `.ics`, no tokenized reschedule/cancel** in v1. The Gmail address (`meertec.ltd@gmail.com`) must never appear in anything the app sends. `db/eratotime_migration.sql` is the authoritative schema.
@@ -63,15 +63,18 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - **Handoff to Phase 3:** `availability_day()` contract is stable — build the caller in `api/slots.php` to supply organizer-tz blockouts/soft-holds and the organizer-tz `now`.
 
 ### Phase 3 — CalDAV/Baïkal Read-Only Sync (calendar of record)
-- **Status:** Not started
+- **Status:** Code built + unit-tested locally; **live sync blocked on the CalDAV credentials in .env**
 - **Prerequisites:** Phases 0–2 complete; **calendar-of-record decision resolved (2026-08-12: CalDAV/Baïkal — requirements Appendix A)**; **Baïkal installed on Hostinger with `stephen@meertec.ltd` user + calendar + app-specific password**
-- **Started:**
-- **Completed:**
+- **Started:** 2026-08-12
+- **Completed:** (code) 2026-08-12
 - **Notes:**
-  - **PRIMARY source = Baïkal CalDAV** under `stephen@meertec.ltd`: busy-block sync via `PROPFIND`/`REPORT` (calendar-query), UID-keyed idempotent upsert/delete, ICS feed fallback (requirements §3.4/3.5). Sabre/VObject also generates the Phase 5 `.ics` import file.
-  - Google `meertec.ltd@gmail.com` is an **optional secondary** read-only source only (existing Gmail meetings block slots; phone-alert attendee trick is independent). The seeded google source row stays inactive unless built.
-  - **Verify Baïkal's server-side invite sending** (`invite_from` claim) — safe default: Thunderbird sends invites from `stephen@meertec.ltd`.
-  - **Do NOT** let the coding agent build any `.ics`/iTIP invite *sent to invitees*, or derive `ORGANIZER` from anything — the app builds no calendar invite at all; the SMTP `From:` header always comes from `global_settings.mailbox_destination` (`stephen@meertec.ltd`). The only `.ics` the app produces is the calendar-import file for the organizer's own calendar (Phase 5).
+  - Baïkal live at `https://www.meertec.ltd/baikal/html/dav.php/calendars/stephen@meertec.ltd/default/` — smoke-tested: responds **401 `WWW-Authenticate: Basic realm="sabre/dav"`** (endpoint live, Basic auth confirmed). Migration seed updated to this URL.
+  - **Built:** `crypto_lib.php` (sodium secretbox at rest); `providers/caldav_provider.php` (REPORT calendar-query, sabre/vobject parsing — timed/all-day/cancelled/floating/recurring via `Recur\EventIterator`, ICS feed fallback, injectable HTTP transport); `calendar_sync_lib.php` (UID-keyed idempotent upsert/delete, fail-closed staleness, activity-log on failure); `cron/sync_calendars.php`; `bin/setup_caldav.php` (encrypts .env creds into calendar_sources).
+  - **Secrets:** new `.env` (gitignored) approach — secrets live in `.env`, loaded by `env.php`/config.php, never in committed .php files. CalDAV password goes in `ERATO_CALDAV_PASSWORD`, then `php bin/setup_caldav.php` encrypts it into `calendar_sources.credentials_encrypted` and flips the source active.
+  - **Tests:** 67 total / 208 assertions green — incl. crypto round-trip + tamper, provider XML/parsing/recurrence/mock-http, sync upsert/idempotency/deletion/failure/staleness against the local test DB. (Fixed a test fixture bug that emitted invalid `T1000Z` iCal times, and enabled `sodium` in local php.ini.)
+  - **Remaining to finish Phase 3 live:** (1) fill `.env` with the CalDAV password; (2) `cp config-sample.php config.php`; (3) run `php bin/setup_caldav.php` against the deployment DB; (4) run `php cron/sync_calendars.php` and confirm blockouts match the Baïkal calendar.
+  - **Verify Baïkal's server-side invite sending** (`invite_from` claim) — safe default: Thunderbird sends invites from `stephen@meertec.ltd`. (Baïkal DOES have an `invite_from` config field on the installer screen; leaving it empty = client-sent invites.)
+  - **Do NOT** build any `.ics`/iTIP invite *sent to invitees*, or derive `ORGANIZER` from anything — the app builds no calendar invite; the SMTP `From:` always comes from `global_settings.mailbox_destination` (`stephen@meertec.ltd`). The only `.ics` the app produces is the organizer's own calendar-import file (Phase 5).
 
 ### Phase 4 — Public Booking Page
 - **Status:** Not started

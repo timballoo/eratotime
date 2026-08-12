@@ -277,7 +277,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO calendar_sources (
     tenant_id, provider, label, calendar_identifier, active, last_sync_status
 )
-SELECT @tenant_id, 'caldav', 'Meertec Baikal (calendar of record)', 'https://www.meertec.ltd/baikal/cal.php/calendars/stephen/default/', 0, 'never_run'
+SELECT @tenant_id, 'caldav', 'Meertec Baikal (calendar of record)', 'https://www.meertec.ltd/baikal/html/dav.php/calendars/stephen@meertec.ltd/default/', 0, 'never_run'
 WHERE NOT EXISTS (
     SELECT 1 FROM calendar_sources
     WHERE tenant_id = @tenant_id AND provider = 'caldav'

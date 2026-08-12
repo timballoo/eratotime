@@ -5,15 +5,20 @@
  *
  * config.php is gitignored and must never be committed: it holds DB
  * credentials, the encryption key path, and the ALTCHA HMAC key (spec 4.2).
- * Values can come from environment variables or config.local.php; the sample
- * shows both. The encryption key file itself must live OUTSIDE the web root
- * (spec 4.2 / 6) — e.g. a sibling directory that the web server cannot serve.
+ * Secrets should live in a gitignored .env file (owner preference, 2026-08)
+ * rather than in this file — this sample reads every value from the
+ * environment, and env.php loads `.env` into the environment at startup.
+ * The encryption key file itself must live OUTSIDE the web root (spec 4.2 / 6).
  */
+
+require_once __DIR__ . '/env.php';
+env_load(__DIR__);
 
 return [
 
     'db' => [
         'host'    => getenv('ERATO_DB_HOST') ?: 'localhost',
+        'port'    => (int) (getenv('ERATO_DB_PORT') ?: 3306),
         'name'    => getenv('ERATO_DB_NAME') ?: '',           // e.g. u835116879_meertec_erato
         'user'    => getenv('ERATO_DB_USER') ?: '',           // e.g. u835116879_admin
         'pass'    => getenv('ERATO_DB_PASS') ?: '',
@@ -21,7 +26,7 @@ return [
     ],
 
     // Path to the file holding the sodium key for credentials_encrypted
-    // (OAuth refresh tokens, CalDAV creds). Must be outside the web root.
+    // (OAuth refresh tokens, CalDAV credentials). Must be outside the web root.
     'encryption_key_path' => getenv('ERATO_ENC_KEY_PATH') ?: dirname(__DIR__) . '/eratotime-keys/enc.key',
 
     // ALTCHA proof-of-work HMAC key (spec 4.2 / Appendix B footgun): generate
@@ -37,6 +42,12 @@ return [
     'app' => [
         'base_url' => getenv('ERATO_BASE_URL') ?: '',         // https://www.meertec.ltd
         'timezone' => 'Europe/London',                        // organizer timezone (default; also in global_settings)
+    ],
+
+    'caldav' => [
+        'calendar_url' => getenv('ERATO_CALDAV_URL') ?: '',   // Baïkal calendar of record
+        'username'     => getenv('ERATO_CALDAV_USERNAME') ?: '',
+        'password'     => getenv('ERATO_CALDAV_PASSWORD') ?: '', // read only by bin/setup_caldav.php to encrypt into calendar_sources
     ],
 
     'smtp' => [
