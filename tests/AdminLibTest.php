@@ -159,6 +159,7 @@ final class AdminLibTest extends TestCase
         $pdo = $this->pdo();
         $r = admin_meeting_type_save($pdo, $this->tenantId(), [
             'slug' => 'intro-call', 'name' => 'Intro Call', 'duration_min' => 30,
+            'video_link' => 'https://meet.google.com/xyz-abc-def',
             'questions' => [['label' => 'Company', 'type' => 'text', 'required' => 1, 'sort_order' => 0]],
         ]);
         self::assertTrue($r['ok']);
@@ -169,6 +170,7 @@ final class AdminLibTest extends TestCase
         self::assertCount(1, $found);
         self::assertCount(1, $found[0]['questions']);
         self::assertSame('Company', $found[0]['questions'][0]['label']);
+        self::assertSame('https://meet.google.com/xyz-abc-def', $found[0]['video_link']);
 
         // Slug collision rejected.
         $dup = admin_meeting_type_save($pdo, $this->tenantId(), ['slug' => 'intro-call', 'name' => 'X', 'duration_min' => 30]);

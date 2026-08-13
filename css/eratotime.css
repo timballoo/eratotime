@@ -193,6 +193,9 @@ html { scroll-behavior: smooth; }
 .field-label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
 .field-label .req { color: var(--brass-dark); }
 .field-hint { font-size: 0.8rem; color: var(--paper-text-lo); margin: 4px 0 0; }
+.field-video { margin: 14px 0 4px; }
+.field-label-check { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+.field-label-check input { width: auto; margin: 0; }
 .guest-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .guest-row .field-input { flex: 1; }
 .guest-remove {

@@ -114,6 +114,53 @@ final class NotifyLibTest extends TestCase
         $pdo->prepare("UPDATE meeting_types SET location_details = NULL WHERE slug = '30-min'")->execute();
     }
 
+    public function testIcsLocationFollowsVideoCallChoice(): void
+    {
+        $pdo = $this->pdo();
+        $requestId = $this->seedRequest();
+        $pdo->prepare("UPDATE meeting_types SET location_details = '+44 7493 104406', video_link = 'https://meet.google.com/abc-defg-hij' WHERE slug = '30-min'")->execute();
+
+        // Video call selected -> LOCATION = Meet link, and the link in DESCRIPTION.
+        $pdo->prepare("UPDATE request_log SET video_call = 1 WHERE id = ?")->execute([$requestId]);
+        $request = $pdo->query("SELECT * FROM request_log WHERE id = {$requestId}")->fetch(PDO::FETCH_ASSOC);
+        $type = $pdo->query("SELECT * FROM meeting_types WHERE slug = '30-min'")->fetch(PDO::FETCH_ASSOC);
+        $settings = $pdo->query("SELECT * FROM global_settings WHERE tenant_id = " . (int) $request['tenant_id'])->fetch(PDO::FETCH_ASSOC);
+
+        $ics = notify_build_ics($request, $type, $settings);
+        self::assertStringContainsString('LOCATION:https://meet.google.com/abc-defg-hij', $ics);
+        self::assertStringContainsString('Video call: https://meet.google.com/abc-defg-hij', $ics);
+
+        // No video -> LOCATION falls back to the default location details.
+        $pdo->prepare("UPDATE request_log SET video_call = 0 WHERE id = ?")->execute([$requestId]);
+        $request = $pdo->query("SELECT * FROM request_log WHERE id = {$requestId}")->fetch(PDO::FETCH_ASSOC);
+        $ics = notify_build_ics($request, $type, $settings);
+        self::assertStringContainsString('LOCATION:+44 7493 104406', $ics);
+        self::assertStringNotContainsString('Video call: https://meet.google.com/abc-defg-hij', $ics);
+
+        $pdo->prepare("UPDATE meeting_types SET location_details = NULL, video_link = NULL WHERE slug = '30-min'")->execute();
+    }
+
+    public function testInviteeEmailShowsVideoLinkWhenChosen(): void
+    {
+        $pdo = $this->pdo();
+        $requestId = $this->seedRequest();
+        $pdo->prepare("UPDATE meeting_types SET location_details = '+44 7493 104406', video_link = 'https://meet.google.com/abc-defg-hij' WHERE slug = '30-min'")->execute();
+        $pdo->prepare("UPDATE request_log SET video_call = 1 WHERE id = ?")->execute([$requestId]);
+
+        $request = $pdo->query("SELECT * FROM request_log WHERE id = {$requestId}")->fetch(PDO::FETCH_ASSOC);
+        $type = $pdo->query("SELECT * FROM meeting_types WHERE slug = '30-min'")->fetch(PDO::FETCH_ASSOC);
+        $settings = $pdo->query("SELECT * FROM global_settings WHERE tenant_id = " . (int) $request['tenant_id'])->fetch(PDO::FETCH_ASSOC);
+
+        $invitee = notify_compose_invitee($request, $type, $settings);
+        self::assertStringContainsString('https://meet.google.com/abc-defg-hij', $invitee['html']);
+        self::assertStringNotContainsString('+44 7493 104406', $invitee['html']);
+
+        $organizer = notify_compose_organizer($request, $type, $settings);
+        self::assertStringContainsString('https://meet.google.com/abc-defg-hij', $organizer['html']);
+
+        $pdo->prepare("UPDATE meeting_types SET location_details = NULL, video_link = NULL WHERE slug = '30-min'")->execute();
+    }
+
     public function testInviteeEmailSubjectPrefix(): void
     {
         $requestId = $this->seedRequest();

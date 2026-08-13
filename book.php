@@ -82,6 +82,7 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
                     'description' => $type['description'],
                     'duration_min' => (int) $type['duration_min'],
                     'location_details' => $type['location_details'],
+                    'video_link' => $type['video_link'],
                 ],
                 'organizer' => [
                     'name' => $tenantName,

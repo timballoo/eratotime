@@ -91,7 +91,10 @@ function render() {
           <span class="meeting-type-duration">${CONFIG.type.duration_min} min</span>
         </div>
         ${CONFIG.type.description ? `<p class="meeting-type-desc">${esc(CONFIG.type.description)}</p>` : ''}
-        ${CONFIG.type.location_details ? `<p class="meeting-type-location">Where: <a href="${esc(locationHref(CONFIG.type.location_details))}" target="_blank" rel="noopener">${esc(CONFIG.type.location_details)}</a></p>` : ''}
+        <p class="meeting-type-location" id="meeting-location">${locationLineHtml()}</p>
+        <div class="field field-video"${CONFIG.type.video_link ? '' : ' style="display:none"'}>
+          <label class="field-label field-label-check"><input type="checkbox" id="f-video" name="video_call" checked> Video call — connect via Google Meet</label>
+        </div>
 
         <div class="tz-row">
           <label class="tz-label" for="tz-select">Your timezone</label>
@@ -134,6 +137,11 @@ function render() {
 
     populateTzSelect();
     document.getElementById('tz-select').addEventListener('change', e => { state.timezone = e.target.value; refreshSlots(); });
+    document.getElementById('f-video').addEventListener('change', () => {
+        const loc = document.getElementById('meeting-location');
+        if (loc) loc.innerHTML = locationLineHtml();
+        renderSummary();
+    });
     document.getElementById('guest-add').addEventListener('click', addGuestRow);
     document.getElementById('booking-form').addEventListener('submit', onSubmit);
     setupMonthNav();
@@ -143,6 +151,26 @@ function render() {
 function locationHref(raw) {
     const t = String(raw || '').trim();
     return /^https?:\/\//i.test(t) ? t : `mailto:${t}`;
+}
+
+function videoWanted() {
+    const box = document.getElementById('f-video');
+    // The checkbox defaults to checked; before it's in the DOM (during initial
+    // template evaluation) treat the video option as selected.
+    return !box || box.checked;
+}
+
+// Location line shown near the meeting type: when a video link is configured
+// and the "Video call" box is ticked, the Google Meet link is the meeting
+// location; otherwise the meeting type's default location/details applies.
+function locationLineHtml() {
+    if (CONFIG.type.video_link && videoWanted()) {
+        return `Where: <a href="${esc(locationHref(CONFIG.type.video_link))}" target="_blank" rel="noopener">${esc(CONFIG.type.video_link)}</a>`;
+    }
+    if (CONFIG.type.location_details) {
+        return `Where: <a href="${esc(locationHref(CONFIG.type.location_details))}" target="_blank" rel="noopener">${esc(CONFIG.type.location_details)}</a>`;
+    }
+    return '';
 }
 
 function questionHtml(q, i) {
@@ -317,7 +345,9 @@ function renderSummary() {
         return;
     }
     const fmt = new Intl.DateTimeFormat(LOCALE, { timeZone: state.timezone, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-    el.innerHTML = `<div class="summary-card"><p class="summary-k">Requested time</p><p>${esc(fmt.format(new Date(state.selectedUtcSlot)))}</p><p class="summary-k">Meeting</p><p>${esc(CONFIG.type.name)} · ${CONFIG.type.duration_min} min</p></div>`;
+    const meet = CONFIG.type.video_link && videoWanted();
+    const where = meet ? CONFIG.type.video_link : CONFIG.type.location_details;
+    el.innerHTML = `<div class="summary-card"><p class="summary-k">Requested time</p><p>${esc(fmt.format(new Date(state.selectedUtcSlot)))}</p><p class="summary-k">Meeting</p><p>${esc(CONFIG.type.name)} · ${CONFIG.type.duration_min} min${where ? ' · ' + esc(where) : ''}</p></div>`;
 }
 
 async function onSubmit(e) {
@@ -334,6 +364,7 @@ async function onSubmit(e) {
         name: document.getElementById('f-name').value.trim(),
         email: document.getElementById('f-email').value.trim(),
         timezone: state.timezone,
+        video_call: videoWanted() ? 1 : 0,
         questions: CONFIG.questions.map((q, i) => ({
             label: q.label,
             answer: document.getElementById(`q-${i}`).value.trim(),

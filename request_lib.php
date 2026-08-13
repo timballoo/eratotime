@@ -33,6 +33,7 @@ if (!function_exists('request_submit')) {
         $name = trim((string) ($input['name'] ?? ''));
         $email = trim((string) ($input['email'] ?? ''));
         $timezone = (string) ($input['timezone'] ?? 'UTC');
+        $videoCall = !empty($input['video_call']) ? 1 : 0;
         $questions = is_array($input['questions'] ?? null) ? $input['questions'] : [];
         $guests = is_array($input['guests'] ?? null) ? $input['guests'] : [];
 
@@ -111,15 +112,16 @@ if (!function_exists('request_submit')) {
             $ins = $pdo->prepare(
                 "INSERT INTO request_log
                    (tenant_id, meeting_type_id, invitee_name, invitee_email, invitee_timezone,
-                    guest_emails, requested_start_utc, requested_end_utc, custom_answers,
+                    guest_emails, requested_start_utc, requested_end_utc, custom_answers, video_call,
                     status, soft_hold_expires_at, sent_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, UTC_TIMESTAMP())"
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, UTC_TIMESTAMP())"
             );
             $ins->execute([
                 $tenantId, $typeId, $name, $email, $timezone,
                 json_encode($guests, JSON_UNESCAPED_UNICODE),
                 $start, $end,
                 json_encode($questions, JSON_UNESCAPED_UNICODE),
+                $videoCall,
                 $softHoldExpires,
             ]);
             $requestId = (int) $pdo->lastInsertId();

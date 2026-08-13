@@ -318,7 +318,7 @@ async function renderMeetingTypes(view) {
 }
 
 async function renderMtEditor(view, t) {
-    const v = t || { slug: '', name: '', duration_min: 30, description: '', location_details: '', buffer_before_min: 0, buffer_after_min: 0, min_notice_hours: 24, max_horizon_days: 14, daily_cap: '', active: 1, questions: [] };
+    const v = t || { slug: '', name: '', duration_min: 30, description: '', location_details: '', video_link: '', buffer_before_min: 0, buffer_after_min: 0, min_notice_hours: 24, max_horizon_days: 14, daily_cap: '', active: 1, questions: [] };
     view.innerHTML = `
       <div class="booking-card">
         <p class="eyebrow">Meeting type</p>
@@ -329,6 +329,7 @@ async function renderMtEditor(view, t) {
           <div class="field"><label class="field-label">Duration (minutes)</label><input class="field-input" name="duration_min" type="number" min="5" value="${v.duration_min}" required></div>
           <div class="field"><label class="field-label">Description</label><textarea class="field-textarea" name="description" rows="2">${esc(v.description || '')}</textarea></div>
           <div class="field"><label class="field-label">Location / meeting details (phone, Meet link, address)</label><input class="field-input" name="location_details" value="${esc(v.location_details || '')}"></div>
+          <div class="field"><label class="field-label">Video call link (Google Meet) — optional, enables the 'Video call' option</label><input class="field-input" name="video_link" value="${esc(v.video_link || '')}" placeholder="https://meet.google.com/..."></div>
           <div class="grid2">
             <div class="field"><label class="field-label">Buffer before (min)</label><input class="field-input" name="buffer_before_min" type="number" min="0" value="${v.buffer_before_min}"></div>
             <div class="field"><label class="field-label">Buffer after (min)</label><input class="field-input" name="buffer_after_min" type="number" min="0" value="${v.buffer_after_min}"></div>
@@ -359,6 +360,7 @@ async function renderMtEditor(view, t) {
         const payload = { csrf: APP.dataset.csrf, id: t ? t.id : 0, questions,
             name: fd.get('name'), slug: fd.get('slug'), duration_min: Number(fd.get('duration_min')),
             description: fd.get('description'), location_details: fd.get('location_details'),
+            video_link: fd.get('video_link'),
             buffer_before_min: Number(fd.get('buffer_before_min')), buffer_after_min: Number(fd.get('buffer_after_min')),
             min_notice_hours: Number(fd.get('min_notice_hours')), max_horizon_days: Number(fd.get('max_horizon_days')),
             daily_cap: fd.get('daily_cap'), active: fd.get('active') ? 1 : 0 };
@@ -401,7 +403,7 @@ async function renderRequests(view) {
             <div>
               <strong>${esc(r.invitee_name)}</strong> &lt;${esc(r.invitee_email)}&gt;
               <span class="badge-dash badge-${esc(r.status)}">${esc(r.status)}</span>
-              <div class="muted">${esc(r.type_name)} · ${esc(fmtTime(r.requested_start_utc))}</div>
+              <div class="muted">${esc(r.type_name)} · ${esc(fmtTime(r.requested_start_utc))}${r.video_call ? ' · Video call' : ''}</div>
               ${r.guest_emails && r.guest_emails.length ? `<div class="muted">Guests: ${esc(r.guest_emails.join(', '))}</div>` : ''}
               ${r.custom_answers && r.custom_answers.length ? `<div class="muted">${esc(r.custom_answers.map(a => `${a.label}: ${a.answer}`).join(' · '))}</div>` : ''}
             </div>

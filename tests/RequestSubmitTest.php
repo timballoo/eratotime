@@ -92,6 +92,7 @@ final class RequestSubmitTest extends TestCase
         self::assertSame('pending', $row['status']);
         self::assertSame('Ada Lovelace', $row['invitee_name']);
         self::assertSame('Europe/London', $row['invitee_timezone']);
+        self::assertSame(0, (int) $row['video_call']);
         self::assertGreaterThan(time(), strtotime((string) $row['soft_hold_expires_at']));
 
         $out = $pdo->prepare('SELECT template, recipient, status FROM notification_outbox WHERE request_log_id = ? ORDER BY template');
@@ -125,6 +126,27 @@ final class RequestSubmitTest extends TestCase
         self::assertTrue(request_submit($pdo, $this->config(), $input)['ok']);
         $res = request_submit($pdo, $this->config(), $input); // same person, same slot
         self::assertFalse($res['ok']);
+    }
+
+    public function testVideoCallChoicePersisted(): void
+    {
+        $pdo = $this->pdo();
+        $input = $this->baseInput(4);
+        $input['video_call'] = 1;
+        $res = request_submit($pdo, $this->config(), $input);
+        self::assertTrue($res['ok'], $res['error'] ?? '');
+
+        $req = $pdo->prepare('SELECT video_call FROM request_log WHERE id = ?');
+        $req->execute([$res['request_id']]);
+        self::assertSame(1, (int) $req->fetchColumn());
+
+        // Absent flag -> default 0.
+        $input = $this->baseInput(5);
+        $input['email'] = 'bob@example.com';
+        $res = request_submit($pdo, $this->config(), $input);
+        self::assertTrue($res['ok'], $res['error'] ?? '');
+        $req->execute([$res['request_id']]);
+        self::assertSame(0, (int) $req->fetchColumn());
     }
 
     public function testInvalidEmailRejected(): void

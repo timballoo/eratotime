@@ -40,4 +40,23 @@ if ($sql === false) {
 
 $pdo->exec($sql);
 printf("Migration applied to %s\n", $config['db']['name']);
+
+// Guarded schema sync for existing databases: CREATE TABLE IF NOT EXISTS never
+// alters a table that already exists, so new columns are added explicitly when
+// missing. Works on MySQL and MariaDB (no ADD COLUMN IF NOT EXISTS needed).
+function migrate_add_column(PDO $pdo, string $table, string $column, string $definition): void
+{
+    $exists = $pdo->prepare(
+        "SELECT COUNT(*) FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?"
+    );
+    $exists->execute([$table, $column]);
+    if ((int) $exists->fetchColumn() === 0) {
+        $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}");
+        printf("  + %s.%s added\n", $table, $column);
+    }
+}
+
+migrate_add_column($pdo, 'meeting_types', 'video_link', 'VARCHAR(255) NULL');
+migrate_add_column($pdo, 'request_log', 'video_call', 'TINYINT(1) NOT NULL DEFAULT 0');
 exit(0);

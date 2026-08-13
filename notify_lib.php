@@ -99,8 +99,23 @@ if (!function_exists('notify_send_email')) {
     }
 
     /**
+     * Resolve the meeting location: when the invitee chose a video call and the
+     * meeting type has a video link, the Google Meet link wins; otherwise the
+     * meeting type's default location/details applies. Returns null if neither.
+     */
+    function notify_meeting_location(array $request, array $type): ?string
+    {
+        if (!empty($request['video_call']) && !empty($type['video_link'])) {
+            return (string) $type['video_link'];
+        }
+        $default = $type['location_details'] ?? null;
+        return ($default === null || $default === '') ? null : (string) $default;
+    }
+
+    /**
      * Build the organizer's .ics calendar-import file (Sabre/VObject).
-     * SUMMARY follows the 2.5 convention; LOCATION carries the fixed Meet link.
+     * SUMMARY follows the 2.5 convention; LOCATION carries the Meet link
+     * (or the default location) per the invitee's video-call choice.
      */
     function notify_build_ics(array $request, array $type, array $settings): string
     {
@@ -113,6 +128,9 @@ if (!function_exists('notify_send_email')) {
             if ($answer !== '') {
                 $lines[] = $label . ': ' . $answer;
             }
+        }
+        if (!empty($request['video_call']) && !empty($type['video_link'])) {
+            $lines[] = 'Video call: ' . (string) $type['video_link'];
         }
         $guests = is_array($request['guest_emails'] ?? null) ? $request['guest_emails'] : json_decode((string) ($request['guest_emails'] ?? '[]'), true);
         if (is_array($guests) && $guests !== []) {
@@ -127,7 +145,7 @@ if (!function_exists('notify_send_email')) {
             'SUMMARY' => 'Eratotime: ' . $type['name'] . ' — ' . $request['invitee_name'],
             'DTSTART' => new DateTimeImmutable($request['requested_start_utc'], new DateTimeZone('UTC')),
             'DTEND' => new DateTimeImmutable($request['requested_end_utc'], new DateTimeZone('UTC')),
-            'LOCATION' => (string) ($type['location_details'] ?? ''),
+            'LOCATION' => (string) (notify_meeting_location($request, $type) ?? ''),
             'DESCRIPTION' => implode("\n", $lines),
         ]);
         return $vcal->serialize();
@@ -148,10 +166,10 @@ if (!function_exists('notify_send_email')) {
             '<p style="background:#F6F3EC;border-left:3px solid #B08D57;padding:12px 16px">' .
             '<strong>' . htmlspecialchars($type['name']) . '</strong> · ' . htmlspecialchars($when) . '<br>' .
             'Duration: ' . (int) $type['duration_min'] . ' minutes</p>';
-        if (!empty($type['location_details'])) {
-            $loc = $type['location_details'];
-            $href = preg_match('#^https?://#i', (string) $loc) ? (string) $loc : 'mailto:' . $loc;
-            $html .= '<p>Where: <a href="' . htmlspecialchars($href) . '">' . htmlspecialchars((string) $loc) . '</a></p>';
+        $loc = notify_meeting_location($request, $type);
+        if ($loc !== null) {
+            $href = preg_match('#^https?://#i', $loc) ? $loc : 'mailto:' . $loc;
+            $html .= '<p>Where: <a href="' . htmlspecialchars($href) . '">' . htmlspecialchars($loc) . '</a></p>';
         }
         $html .= '<p>Dr Stephen D. Jones will confirm the meeting by sending the calendar invitation. ' .
             'If you need to change or cancel, reply to this email or contact ' .
@@ -190,11 +208,12 @@ if (!function_exists('notify_send_email')) {
                 $html .= '<p><strong>' . htmlspecialchars($label) . ':</strong> ' . nl2br(htmlspecialchars($answer)) . '</p>';
             }
         }
-        if (!empty($type['location_details'])) {
-            $html .= '<p><strong>Location / meeting link:</strong> ' . htmlspecialchars((string) $type['location_details']) . '</p>';
+        $loc = notify_meeting_location($request, $type);
+        if ($loc !== null) {
+            $html .= '<p><strong>Location / meeting link:</strong> ' . htmlspecialchars($loc) . '</p>';
         }
         $html .= '<p>Import the attached <strong>eratotime-meeting.ics</strong> into the Baïkal calendar (Thunderbird) ' .
-            'to create the event pre-filled — the Meet link is already in it. Then mark the request fulfilled in the admin panel.</p></div>';
+            'to create the event pre-filled — the meeting link is already in it. Then mark the request fulfilled in the admin panel.</p></div>';
 
         $alt = "New booking request\n\n" . $type['name'] . ' · ' . $when . "\nInvitee: " . $request['invitee_name'] .
             ' <' . $request['invitee_email'] . ">\n" .
@@ -212,8 +231,8 @@ if (!function_exists('notify_send_email')) {
         $rows = $pdo->prepare(
             "SELECT o.id AS outbox_id, o.template, o.recipient, o.status, o.attempts, o.last_attempt_at, o.next_retry_at,
                     r.id AS request_id, r.invitee_name, r.invitee_email, r.invitee_timezone,
-                    r.guest_emails, r.custom_answers, r.requested_start_utc, r.requested_end_utc,
-                    mt.name AS type_name, mt.duration_min, mt.location_details,
+                    r.guest_emails, r.custom_answers, r.video_call, r.requested_start_utc, r.requested_end_utc,
+                    mt.name AS type_name, mt.duration_min, mt.location_details, mt.video_link,
                     g.organizer_timezone, g.mailbox_destination, g.whatsapp_destination_number
                FROM notification_outbox o
                JOIN request_log r ON r.id = o.request_log_id
@@ -233,10 +252,11 @@ if (!function_exists('notify_send_email')) {
                 'invitee_timezone' => $row['invitee_timezone'],
                 'guest_emails' => $row['guest_emails'],
                 'custom_answers' => $row['custom_answers'],
+                'video_call' => $row['video_call'],
                 'requested_start_utc' => $row['requested_start_utc'],
                 'requested_end_utc' => $row['requested_end_utc'],
             ];
-            $type = ['name' => $row['type_name'], 'duration_min' => $row['duration_min'], 'location_details' => $row['location_details']];
+            $type = ['name' => $row['type_name'], 'duration_min' => $row['duration_min'], 'location_details' => $row['location_details'], 'video_link' => $row['video_link']];
             $settings = [
                 'organizer_timezone' => $row['organizer_timezone'],
                 'mailbox_destination' => $row['mailbox_destination'],

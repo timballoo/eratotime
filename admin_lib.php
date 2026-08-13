@@ -339,6 +339,7 @@ if (!function_exists('admin_session_start')) {
         $fields = [
             'slug' => $slug, 'name' => $name, 'description' => trim((string) ($data['description'] ?? '')),
             'duration_min' => $duration, 'location_details' => trim((string) ($data['location_details'] ?? '')),
+            'video_link' => trim((string) ($data['video_link'] ?? '')),
             'buffer_before_min' => max(0, (int) ($data['buffer_before_min'] ?? 0)),
             'buffer_after_min' => max(0, (int) ($data['buffer_after_min'] ?? 0)),
             'min_notice_hours' => max(0, (int) ($data['min_notice_hours'] ?? 24)),
