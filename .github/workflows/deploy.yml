@@ -1,9 +1,12 @@
 name: Deploy Eratotime via Rsync
 
-# Deploy-on-commit: push to main runs the test suite, then rsyncs the app to
-# the meertec.ltd doc root on Hostinger (mirrors the cookingtogetherness
-# pattern). Secrets (.env, config.php) and user uploads are never deployed —
-# see .rsyncignore. The idempotent schema is re-applied after each deploy.
+# Deploy-on-commit: push to main runs the test suite, then rsyncs the app to the
+# book.meertec.ltd doc root on Hostinger (mirrors the cookingtogetherness
+# pattern). The app lives at domains/book.meertec.ltd/public_html — OUTSIDE the
+# shared meertec.ltd doc root — so the business site's deploys can never touch
+# it. Secrets (.env, config.php) and user uploads are never deployed nor
+# deleted (see .rsyncignore: `P` protects them). The idempotent schema is
+# re-applied after each deploy.
 
 on:
   push:
@@ -78,16 +81,16 @@ jobs:
             --filter='merge .rsyncignore' \
             -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
             ./ \
-            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/eratotime/
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/book.meertec.ltd/public_html/
 
       - name: Apply migrations (idempotent)
         run: |
           ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
             ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }} \
-            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/eratotime && php bin/migrate.php'
+            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/book.meertec.ltd/public_html && php bin/migrate.php'
 
       - name: Smoke check booking page
         run: |
           curl -sf -o /dev/null -w 'booking page HTTP %{http_code}\n' \
-            https://www.meertec.ltd/eratotime/t/meertec/book/30-min || \
+            https://book.meertec.ltd/t/meertec/book/30-min || \
             echo 'booking page not ready (likely missing ERATO_DB_PASS in server .env)'

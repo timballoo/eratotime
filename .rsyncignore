@@ -1,13 +1,16 @@
 # rsync ignore filters (used by .github/workflows/deploy.yml).
-# `-` excludes from transfer AND protects from --delete.
-# Secrets (and local-only/dev files) are never deployed; uploads/ is server
-# content that CI must never overwrite or delete.
+# `P` = PROTECT: the file is never deleted by --delete (rsync deletes excluded
+#     files by default!). Use P for anything that lives only on the server.
+# `-` = exclude from transfer (deletion is fine if it ever appears).
 
 - .git/
-- .env
-- config.php
+- .github/
 - preview.php
 - .phpunit.cache/
 - phpunit.xml
 - tests/
-- uploads/
+
+# Server-only: never transfer, never delete.
+P .env
+P config.php
+P uploads/

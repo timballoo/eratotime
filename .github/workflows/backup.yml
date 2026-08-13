@@ -31,7 +31,7 @@ jobs:
         run: |
           ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
             ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }} \
-            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/eratotime && php bin/backup.php'
+            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/book.meertec.ltd/public_html && php bin/backup.php'
 
       - name: Pull backups down to the runner
         run: |
