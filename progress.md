@@ -118,11 +118,12 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - **Handoff to Phase 7:** schedule `cron/sync_calendars.php`, `cron/retry_notifications.php`, and `cron/cleanup.php` (cleanup.php is still to be written) on Hostinger; run the §8 manual test matrix; HTTPS + .htaccess verified on the live domain; deploy .env/config.php with real secrets.
 
 ### Phase 7 — Cron Hardening & Go-Live Checklist
-- **Status:** Code complete (all three crons written + tested); **deployment pending** (live Hostinger setup)
+- **Status:** Code complete + **CI deploy live** (rsync on push); **app live once the server .env DB password is filled**
 - **Prerequisites:** Phases 0–6 complete
 - **Started:** 2026-08-12
 - **Completed:** (code) 2026-08-12
 - **Notes:**
   - All three crons exist: `sync_calendars.php` (Phase 3), `retry_notifications.php` (Phase 5), `cleanup.php` (this phase: expires stale soft-holds, purges terminal requests past `request_log_retention_days`, never touches active holds; cascades outbox). 101 tests / 393 assertions green.
-  - **Remaining (external/manual, needs the live Hostinger box):** deploy the repo + `.env` + `config.php` with real secrets; run the migration; `bin/setup_caldav.php`; schedule the 3 crons (every 10 min sync; 5 min retry; daily cleanup); HTTPS + `.htaccess` verified; full §8 manual test matrix against `www.meertec.ltd`; the booking page iframe-embedded on the business site (spec 2.7).
-  - Config for the live box: `ERATO_CSRF_KEY`, `ERATO_ALTCHA_HMAC_KEY`, `ERATO_SMTP_*`, `ERATO_CALDAV_*` all set; admin passphrase hash in `config.php`.
+  - **Deploy (2026-08-13):** GitHub Actions `deploy.yml` — push to `main` → PHP 8.2 test suite (MySQL 8 service) → `composer install --no-dev` → `rsync --delete` with `.rsyncignore` (never deploys `.env`/`config.php`/`tests`/`uploads`) → `bin/migrate.php` (idempotent) → smoke check. Secrets: `SSH_PRIVATE_KEY` (CI deploy key `id_ed25519_ci`, added to server `authorized_keys`), `HOSTINGER_IP`, `HOSTINGER_USER`. Target: `/home/u835116879/domains/meertec.ltd/public_html/eratotime/` (the real doc root — the earlier `~/public_html` copy was the wrong tree, now removed).
+  - **Live status:** tests green in CI; code deployed; `admin.php` + `api/altcha.php` respond 200; `.env`/`bin/` 403. **Blocker for go-live:** server `.env` (`ERATO_DB_PASS`) is blank → migrate + booking DB fail until the hPanel DB password is filled in `domains/meertec.ltd/public_html/eratotime/.env`; SMTP/CalDAV passwords also blank (set by the owner).
+  - **Remaining (external/manual):** fill server `.env` passwords; schedule the 3 crons on Hostinger; run the §8 go-live matrix; iframe-embed the booking page on the business site (spec 2.7).
