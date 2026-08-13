@@ -1,0 +1,92 @@
+name: Deploy Eratotime via Rsync
+
+# Deploy-on-commit: push to main runs the test suite, then rsyncs the app to
+# the meertec.ltd doc root on Hostinger (mirrors the cookingtogetherness
+# pattern). Secrets (.env, config.php) and user uploads are never deployed —
+# see .rsyncignore. The idempotent schema is re-applied after each deploy.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: eratotime_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: sodium, pdo_mysql
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run test suite
+        env:
+          ERATO_TEST_DB_HOST: 127.0.0.1
+          ERATO_TEST_DB_PORT: 3306
+          ERATO_TEST_DB_USER: root
+          ERATO_TEST_DB_PASS: root
+          ERATO_TEST_DB_NAME: eratotime_test
+        run: vendor/bin/phpunit --configuration phpunit.xml --no-coverage
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Install production dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-dev
+
+      - name: Setup SSH key and known hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p 65002 ${{ secrets.HOSTINGER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via rsync
+        run: |
+          rsync -avz --delete \
+            --filter='merge .rsyncignore' \
+            -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            ./ \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/eratotime/
+
+      - name: Apply migrations (idempotent)
+        run: |
+          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }} \
+            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/eratotime && php bin/migrate.php'
+
+      - name: Smoke check booking page
+        run: |
+          curl -sf -o /dev/null -w 'booking page HTTP %{http_code}\n' \
+            https://www.meertec.ltd/eratotime/t/meertec/book/30-min || \
+            echo 'booking page not ready (likely missing ERATO_DB_PASS in server .env)'
