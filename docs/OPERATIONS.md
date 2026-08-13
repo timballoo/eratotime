@@ -69,13 +69,14 @@ day-to-day runbook.
 - `retry_notifications.php` every 5 min.
 - `cleanup.php` daily.
 
-## Structural hardening (recommended)
+## Structural hardening (in progress)
 
-Move `eratotime/` and `baikal/` into their **own subdomain doc root**
-(`book.meertec.ltd`) so the business site's deploy can never touch them:
-1. hPanel → Websites → Add Subdomain → `book.meertec.ltd` (doc root auto-created).
-2. Retarget the CI deploy path in `deploy.yml` to
-   `…/domains/book.meertec.ltd/public_html/`.
-3. Move Baïkal there too and update `ERATO_CALDAV_URL`.
-4. Point the site's "Book a slot" link (`$site['book']`) at the new URL.
-Then the shared-`public_html` risk disappears entirely.
+`book.meertec.ltd` is live as a **URL alias** for the Eratotime app (its custom
+document root points at the existing `domains/meertec.ltd/public_html/eratotime`
+folder — Hostinger's `default.php` placeholder inside that folder was removed
+so the app serves). Clean booking URL: `https://book.meertec.ltd/t/meertec/book/30-min`.
+
+> Because the app physically stays in the shared doc root, the wipe risk is
+> mitigated by the nightly off-box backup + git restore, but not eliminated.
+> True separation = deploy the app to the subdomain's own doc root
+> (`domains/book.meertec.ltd/public_html`) and retarget CI there. Optional.
