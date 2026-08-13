@@ -15,6 +15,7 @@ const state = {
     selectedOrgSlot: null,
     timezone: detectedTimezone(),
     stale: false,
+    availableDates: new Set(),
 };
 
 const LOCALE = 'en-GB';
@@ -71,6 +72,13 @@ function render() {
       <div class="booking-card">
         <p class="eyebrow">Meertec &nbsp;·&nbsp; ${esc(CONFIG.type.name)}</p>
         <h1 class="booking-heading">Book a conversation</h1>
+
+        ${CONFIG.types.length > 1 ? `
+        <div class="type-toggle" role="group" aria-label="Meeting length">
+          ${CONFIG.types.map(t =>
+            `<a class="type-toggle-btn${t.slug === CONFIG.type_slug ? ' is-active' : ''}" href="${esc(CONFIG.base)}t/${esc(CONFIG.tenant_slug)}/book/${esc(t.slug)}">${esc(t.name)}</a>`
+          ).join('')}
+        </div>` : ''}
 
         ${CONFIG.organizer.photo || CONFIG.organizer.bio ? `
         <div class="organizer">
@@ -216,7 +224,8 @@ async function refreshMonth() {
             document.getElementById('date-grid').innerHTML = '';
             return;
         }
-        renderMonth(anchor, new Set(body.dates));
+        state.availableDates = new Set(body.dates);
+        renderMonth(anchor, state.availableDates);
     } catch (e) {
         setStatus(e.message, 'error');
     }
@@ -251,7 +260,7 @@ async function selectDate(date) {
     state.selectedDate = date;
     state.selectedUtcSlot = null;
     state.selectedOrgSlot = null;
-    renderMonth(monthAnchor(), null); // re-render with selection state; availability from cache
+    renderMonth(monthAnchor(), state.availableDates); // re-render with selection state; availability from cache
     const wrap = document.getElementById('slots-wrap');
     wrap.innerHTML = '<p class="slot-empty">Loading times…</p>';
     document.getElementById('date-grid').querySelectorAll('.date-cell.is-available').forEach(b => b.classList.toggle('is-selected', b.dataset.date === date));

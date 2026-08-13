@@ -116,6 +116,19 @@ html { scroll-behavior: smooth; }
 .meeting-type-location { margin: 10px 0 0; font-size: 0.95rem; }
 .meeting-type-location a { word-break: break-all; }
 
+/* ---------- Meeting-length toggle ---------- */
+.type-toggle {
+  display: inline-flex; border: 1px solid var(--paper-line); border-radius: var(--radius);
+  padding: 3px; gap: 3px; margin: 16px 0 4px;
+}
+.type-toggle-btn {
+  font: inherit; font-size: 0.88rem; color: var(--paper-text-hi);
+  text-decoration: none; padding: 7px 16px; border-radius: calc(var(--radius) - 2px);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.type-toggle-btn:hover, .type-toggle-btn:focus-visible { background: var(--paper-alt); }
+.type-toggle-btn.is-active { background: var(--ink); color: var(--ink-text-hi); }
+
 /* ---------- Timezone ---------- */
 .tz-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
 .tz-label { font-family: var(--font-mono); font-size: 0.76rem; color: var(--paper-text-lo); }
@@ -142,6 +155,7 @@ html { scroll-behavior: smooth; }
   display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
   list-style: none; margin: 0; padding: 0;
 }
+.date-grid li { display: flex; justify-content: center; align-items: center; }
 .date-dow {
   font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--paper-text-lo); text-align: center; padding: 4px 0;
@@ -150,7 +164,7 @@ html { scroll-behavior: smooth; }
   font-family: var(--font-mono); font-size: 0.86rem;
   border: 1px solid var(--paper-line); border-radius: var(--radius);
   background: #fff; color: var(--paper-text-lo); padding: 10px 0; text-align: center;
-  cursor: default; transition: border-color 0.15s ease, background 0.15s ease;
+  width: 100%; cursor: default; transition: border-color 0.15s ease, background 0.15s ease;
 }
 .date-cell.is-available {
   color: var(--paper-text-hi); cursor: pointer;

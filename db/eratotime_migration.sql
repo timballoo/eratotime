@@ -344,6 +344,16 @@ WHERE NOT EXISTS (
     SELECT 1 FROM meeting_types WHERE tenant_id = @tenant_id AND slug = '60-min'
 );
 
+-- "Purpose of meeting" question for both default types (section 5).
+INSERT INTO meeting_type_questions (meeting_type_id, label, type, required, sort_order)
+SELECT mt.id, 'What is the purpose of the meeting?', 'textarea', 1, 1
+FROM meeting_types mt
+WHERE mt.tenant_id = @tenant_id AND mt.slug IN ('30-min', '60-min')
+  AND NOT EXISTS (
+      SELECT 1 FROM meeting_type_questions q
+       WHERE q.meeting_type_id = mt.id AND q.label = 'What is the purpose of the meeting?'
+  );
+
 -- Default dispatcher cron jobs. ONE system cron runs cron_dispatcher.php; the
 -- jobs below are due-checked against schedule_min and run by their handler
 -- (a function name registered in cron_lib.php). Adjust schedules in the admin

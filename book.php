@@ -69,6 +69,10 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
             $qStmt->execute([$type['id']]);
             $questions = $qStmt->fetchAll(PDO::FETCH_ASSOC);
 
+            $tStmt = $pdo->prepare('SELECT slug, name, duration_min, sort_order FROM meeting_types WHERE tenant_id = ? AND active = 1 ORDER BY sort_order');
+            $tStmt->execute([$tenantId]);
+            $types = $tStmt->fetchAll(PDO::FETCH_ASSOC);
+
             $payload = [
                 'base' => $basePath,
                 'tenant_slug' => $tenantSlug,
@@ -85,6 +89,7 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
                     'photo' => $settings['organizer_photo_path'] ?? null,
                 ],
                 'questions' => $questions,
+                'types' => $types,
                 'csrf' => security_csrf_issue((string) ($config['csrf_secret'] ?? '')),
                 'altcha_enabled' => altcha_enabled($config),
             ];
