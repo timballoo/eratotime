@@ -1,0 +1,54 @@
+name: Nightly Backup
+
+# Off-box backup (mirrors the cookingtogetherness pattern): dumps the Eratotime
+# database and Baïkal's config/data on the Hostinger box, pulls them down to the
+# runner, and stores the package as a GitHub Actions artifact. Storage is GitHub
+# (off the box), so a host-level mishap can't take site and backup together.
+#
+# Schedule: 02:00 UTC nightly + manual dispatch. Artifacts retained 14 days;
+# the box prunes to 14 generations to match.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key and known hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p 65002 ${{ secrets.HOSTINGER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Run backup on server
+        run: |
+          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }} \
+            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/eratotime && php bin/backup.php'
+
+      - name: Pull backups down to the runner
+        run: |
+          mkdir -p backup
+          rsync -az -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/backups/eratotime/ backup/eratotime/
+          # Baïkal's data lives in its config/ + Specific/ dirs (settings, users,
+          # SQLite DB, calendar events) — rsync them directly.
+          rsync -az --ignore-missing-args -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/baikal/config/ backup/baikal/config/
+          rsync -az --ignore-missing-args -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/baikal/Specific/ backup/baikal/Specific/
+
+      - name: Package and upload artifact
+        run: tar czf backup/eratotime-backup.tar.gz -C backup eratotime baikal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eratotime-backup
+          path: backup/eratotime-backup.tar.gz
+          retention-days: 14
