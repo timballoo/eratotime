@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 
 /**
@@ -14,6 +13,8 @@
  *
  * System cron (hPanel) — one entry, every 5 minutes:
  *   /usr/bin/php /home/u835116879/domains/book.meertec.ltd/public_html/cron_dispatcher.php
+ * (Invoked via `php script.php`, so no shebang is needed — and a shebang would
+ * leak into the HTTP JSON response.)
  */
 
 require __DIR__ . '/vendor/autoload.php';
