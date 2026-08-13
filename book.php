@@ -17,6 +17,14 @@ require __DIR__ . '/security_lib.php';
 
 $config = require __DIR__ . '/config.php';
 
+// App base path derived from the request, so assets/APIs work when the app is
+// served at the web root (/t/...) or under a subdirectory (/eratotime/t/...).
+$reqPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+$basePath = '/';
+if (preg_match('#^(.*?)/t/[^/]+/book/[^/]+/?$#', $reqPath, $m) && $m[1] !== '') {
+    $basePath = rtrim($m[1], '/') . '/';
+}
+
 $tenantSlug = (string) ($_GET['tenant'] ?? '');
 $typeSlug = (string) ($_GET['type'] ?? '');
 if ($tenantSlug === '' || $typeSlug === '') {
@@ -62,6 +70,7 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
             $questions = $qStmt->fetchAll(PDO::FETCH_ASSOC);
 
             $payload = [
+                'base' => $basePath,
                 'tenant_slug' => $tenantSlug,
                 'type_slug' => $typeSlug,
                 'type' => [
@@ -91,7 +100,7 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
 <meta name="theme-color" content="#0F1B2B">
 <title><?= htmlspecialchars($title) ?></title>
 <meta name="description" content="Request a time to talk with Dr Stephen D. Jones.">
-<link rel="stylesheet" href="css/eratotime.css">
+<link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>css/eratotime.css">
 </head>
 <body class="booking-body">
 <header class="masthead">
@@ -127,12 +136,12 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
     </div>
 </footer>
 
-<script src="js/embed-resize.js"></script>
+<script src="<?= htmlspecialchars($basePath) ?>js/embed-resize.js"></script>
 <?php if ($payload !== null): ?>
 <?php if ($payload['altcha_enabled']): ?>
 <script src="https://cdn.jsdelivr.net/npm/altcha@0/altcha.min.js" defer></script>
 <?php endif; ?>
-<script type="module" src="js/booking.js"></script>
+<script type="module" src="<?= htmlspecialchars($basePath) ?>js/booking.js"></script>
 <?php endif; ?>
 </body>
 </html>

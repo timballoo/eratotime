@@ -119,7 +119,7 @@ function render() {
             <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
           </div>
           <div id="summary"></div>
-          ${CONFIG.altcha_enabled ? '<altcha-widget challenge-url="api/altcha.php" name="altcha"></altcha-widget>' : ''}
+          ${CONFIG.altcha_enabled ? `<altcha-widget challenge-url="${esc(CONFIG.base)}api/altcha.php" name="altcha"></altcha-widget>` : ''}
           <button type="submit" class="btn btn-primary" id="submit-btn">Request this time</button>
         </form>
       </div>`;
@@ -160,7 +160,7 @@ function populateTzSelect() {
 
 async function api(params) {
     const qs = new URLSearchParams({ tenant: CONFIG.tenant_slug, type: CONFIG.type_slug, ...params });
-    const res = await fetch(`api/slots.php?${qs}`);
+    const res = await fetch(`${CONFIG.base}api/slots.php?${qs}`);
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.ok) throw new Error(body.error || `Request failed (${res.status})`);
     return body;
@@ -341,7 +341,7 @@ async function onSubmit(e) {
     const btn = document.getElementById('submit-btn');
     btn.disabled = true;
     try {
-        const res = await fetch('api/requests.php', {
+        const res = await fetch(`${CONFIG.base}api/requests.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
