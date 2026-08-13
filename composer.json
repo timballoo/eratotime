@@ -30,6 +30,7 @@
             "notify_lib.php",
             "admin_lib.php",
             "cleanup_lib.php",
+            "cron_lib.php",
             "providers/caldav_provider.php"
         ]
     },

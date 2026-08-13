@@ -25,8 +25,10 @@ if (!function_exists('admin_session_start')) {
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
-        session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')]);
-        session_start();
+        if (headers_sent() === false) {
+            session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')]);
+            @session_start();
+        }
     }
 
     function admin_is_logged_in(): bool
@@ -59,7 +61,9 @@ if (!function_exists('admin_session_start')) {
             return ['ok' => false, 'error' => 'Incorrect credentials.'];
         }
         admin_session_start();
-        session_regenerate_id(true);
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
         $_SESSION['eratotime_admin'] = true;
         return ['ok' => true];
     }
@@ -450,5 +454,81 @@ if (!function_exists('admin_session_start')) {
             $warnings[] = 'A connected calendar has not synced for 24h — availability is failing closed.';
         }
         return $warnings;
+    }
+
+    /**
+     * Usage tracking for the dashboard (last $days).
+     */
+    function admin_dashboard_usage(PDO $pdo, int $tenantId, int $days = 30): array
+    {
+        $daily = [];
+        $stmt = $pdo->prepare(
+            "SELECT DATE(sent_at) AS d, COUNT(*) AS n FROM request_log
+              WHERE tenant_id = ? AND sent_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY)
+              GROUP BY DATE(sent_at) ORDER BY d"
+        );
+        $stmt->execute([$tenantId, $days]);
+        $byDate = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $byDate[$r['d']] = (int) $r['n'];
+        }
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $d = gmdate('Y-m-d', time() - $i * 86400);
+            $daily[] = ['date' => $d, 'count' => $byDate[$d] ?? 0];
+        }
+
+        $byType = $pdo->prepare(
+            "SELECT mt.name AS type_name, COUNT(*) AS n
+               FROM request_log r JOIN meeting_types mt ON mt.id = r.meeting_type_id
+              WHERE r.tenant_id = ? GROUP BY mt.id, mt.name ORDER BY n DESC"
+        );
+        $byType->execute([$tenantId]);
+
+        $byStatus = ['pending' => 0, 'fulfilled' => 0, 'cancelled' => 0, 'expired' => 0];
+        $stmt = $pdo->prepare('SELECT status, COUNT(*) AS n FROM request_log WHERE tenant_id = ? GROUP BY status');
+        $stmt->execute([$tenantId]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            if (isset($byStatus[$r['status']])) {
+                $byStatus[$r['status']] = (int) $r['n'];
+            }
+        }
+
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM request_log WHERE tenant_id = ?');
+        $stmt->execute([$tenantId]);
+        $total = (int) $stmt->fetchColumn();
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM request_log WHERE tenant_id = ? AND requested_start_utc >= UTC_TIMESTAMP() AND status = 'pending'");
+        $stmt->execute([$tenantId]);
+        $upcoming = (int) $stmt->fetchColumn();
+
+        return [
+            'total' => $total,
+            'upcoming' => $upcoming,
+            'by_status' => $byStatus,
+            'by_type' => $byType->fetchAll(PDO::FETCH_ASSOC),
+            'daily' => $daily,
+        ];
+    }
+
+    // --- Cron jobs (dispatcher, cookingtogetherness pattern) ----------------
+
+    function admin_cron_list(PDO $pdo): array
+    {
+        return cron_get_jobs($pdo);
+    }
+
+    function admin_cron_toggle(PDO $pdo, string $key): bool
+    {
+        return cron_toggle_job($pdo, $key);
+    }
+
+    function admin_cron_update(PDO $pdo, string $key, int $scheduleMin): bool
+    {
+        return cron_update_schedule($pdo, $key, $scheduleMin);
+    }
+
+    function admin_cron_run(PDO $pdo, array $config, string $key): array
+    {
+        return cron_run_job($pdo, $config, $key);
     }
 }

@@ -44,6 +44,10 @@ return [
     // CallMeBot API key for the optional WhatsApp notification (2.5).
     'whatsapp_api_key' => getenv('ERATO_WHATSAPP_API_KEY') ?: '',
 
+    // Shared secret for HTTP-triggering cron_dispatcher.php (?key=...).
+    // Not needed for the CLI cron; generate via bin/generate_keys.php.
+    'cron_secret' => getenv('ERATO_CRON_SECRET') ?: '',
+
     'admin' => [
         'username'      => 'admin',
         'password_hash' => '', // password_hash($passphrase, PASSWORD_DEFAULT) — single shared passphrase (spec 1.4)

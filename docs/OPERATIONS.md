@@ -68,13 +68,19 @@ day-to-day runbook.
 
 ## Crons (hPanel → Advanced → Cron Jobs)
 
-All paths use the Eratotime doc root:
-`/home/u835116879/domains/book.meertec.ltd/public_html`
+**ONE** system cron calls the dispatcher every 5 minutes; the `cron_jobs` table
+decides what runs when (configured in the admin panel → **Cron** tab):
 
-- `sync_calendars.php` every 10 min:
-  `php /home/u835116879/domains/book.meertec.ltd/public_html/cron/sync_calendars.php`
-- `retry_notifications.php` every 5 min.
-- `cleanup.php` daily.
+```
+*/5 * * * * /usr/bin/php /home/u835116879/domains/book.meertec.ltd/public_html/cron_dispatcher.php
+```
+
+The seeded jobs: `sync_calendars` (10 min), `retry_notifications` (5 min),
+`cleanup` (daily). Each job tracks `last_run_at`, `last_status`,
+`last_output`, `run_count` in `cron_jobs` — visible in the admin Cron tab,
+which also toggles enable/disable and edits the schedule. HTTP trigger (if
+wanted): `GET https://book.meertec.ltd/cron_dispatcher.php?key=YOUR_CRON_SECRET`
+(needs `ERATO_CRON_SECRET` in `.env`).
 
 ## Structural note
 

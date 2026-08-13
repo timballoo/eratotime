@@ -243,6 +243,27 @@ CREATE TABLE IF NOT EXISTS activity_log (
         FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ---------------------------------------------------------------------
+-- 13. cron_jobs — dispatcher-driven scheduled jobs. ONE system cron calls
+--     cron_dispatcher.php, which checks this table and runs due jobs. The
+--     admin panel configures/tracks them (cookingtogetherness pattern).
+--     'handler' is a PHP function name registered in cron_lib.php.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cron_jobs (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    job_key       VARCHAR(64)  NOT NULL,
+    title         VARCHAR(191) NOT NULL,
+    description   VARCHAR(500) NULL,
+    handler       VARCHAR(191) NOT NULL,
+    schedule_min  INT UNSIGNED NOT NULL DEFAULT 60,
+    enabled       TINYINT(1)   NOT NULL DEFAULT 1,
+    last_run_at   DATETIME NULL,
+    last_status   ENUM('success','error','never_run') NOT NULL DEFAULT 'never_run',
+    last_output   TEXT NULL,
+    run_count     INT UNSIGNED NOT NULL DEFAULT 0,
+    UNIQUE KEY uq_cron_jobs_key (job_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =====================================================================
@@ -322,3 +343,14 @@ SELECT @tenant_id, '60-min', '60 Minute Meeting', 60, 24, 14, 1, 2
 WHERE NOT EXISTS (
     SELECT 1 FROM meeting_types WHERE tenant_id = @tenant_id AND slug = '60-min'
 );
+
+-- Default dispatcher cron jobs. ONE system cron runs cron_dispatcher.php; the
+-- jobs below are due-checked against schedule_min and run by their handler
+-- (a function name registered in cron_lib.php). Adjust schedules in the admin
+-- panel (Cron tab), not here.
+INSERT INTO cron_jobs (job_key, title, description, handler, schedule_min, enabled)
+VALUES
+  ('sync_calendars',       'Sync calendars',        'Fetch busy time from active calendar sources into calendar_blockouts', 'cron_task_sync_calendars',       10,   1),
+  ('retry_notifications',  'Retry notifications',   'Retry pending notification_outbox rows with backoff',                'cron_task_retry_notifications',  5,    1),
+  ('cleanup',              'Cleanup',               'Expire soft-holds and purge old requests per retention',             'cron_task_cleanup',              1440, 1)
+ON DUPLICATE KEY UPDATE title = VALUES(title), handler = VALUES(handler), schedule_min = VALUES(schedule_min), enabled = VALUES(enabled);

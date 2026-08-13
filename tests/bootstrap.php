@@ -16,6 +16,7 @@ require_once __DIR__ . '/../request_lib.php';
 require_once __DIR__ . '/../notify_lib.php';
 require_once __DIR__ . '/../admin_lib.php';
 require_once __DIR__ . '/../cleanup_lib.php';
+require_once __DIR__ . '/../cron_lib.php';
 require_once __DIR__ . '/../providers/caldav_provider.php';
 
 $autoload = __DIR__ . '/../vendor/autoload.php';

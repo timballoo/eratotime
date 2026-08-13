@@ -86,3 +86,37 @@
 }
 
 .admin-login-card { max-width: 420px; margin: 0 auto; }
+
+/* --- Usage dashboard --- */
+.usage-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 18px 0 6px; }
+.usage-card {
+  background: var(--paper-alt); border: 1px solid var(--paper-line); border-radius: var(--radius);
+  padding: 16px 14px; text-align: center;
+}
+.usage-num { font-family: var(--font-mono); font-size: 1.6rem; color: var(--brass-dark); margin: 0 0 4px; }
+.usage-label { font-size: 0.76rem; color: var(--paper-text-lo); margin: 0; line-height: 1.35; }
+@media (max-width: 860px) { .usage-cards { grid-template-columns: repeat(2, 1fr); } }
+
+.usage-bars {
+  display: flex; align-items: flex-end; gap: 3px; height: 120px;
+  border-bottom: 1px solid var(--paper-line); margin: 12px 0 4px; padding-bottom: 0;
+}
+.usage-bar {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;
+}
+.usage-bar-fill { width: 100%; max-width: 22px; background: var(--brass); border-radius: 2px 2px 0 0; min-height: 2px; }
+.usage-bar:hover .usage-bar-fill { background: var(--brass-dark); }
+.usage-bar-day { font-family: var(--font-mono); font-size: 0.58rem; color: var(--paper-text-lo); margin-top: 3px; }
+
+.usage-type-row {
+  display: flex; justify-content: space-between; padding: 9px 0;
+  border-bottom: 1px solid var(--paper-line); font-size: 0.92rem;
+}
+.usage-type-count { font-family: var(--font-mono); color: var(--brass-dark); }
+
+/* --- Cron --- */
+.cron-output {
+  font-family: var(--font-mono); font-size: 0.72rem; max-height: 140px; overflow: auto;
+  background: var(--paper-alt); border: 1px solid var(--paper-line); border-radius: var(--radius);
+  padding: 8px; white-space: pre-wrap; word-break: break-all; margin: 6px 0 0;
+}

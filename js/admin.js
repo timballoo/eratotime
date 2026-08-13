@@ -31,6 +31,7 @@ function nav() {
         <a href="#" data-view="meeting-types">Meeting types</a>
         <a href="#" data-view="requests">Requests</a>
         <a href="#" data-view="calendars">Calendars</a>
+        <a href="#" data-view="cron">Cron</a>
         <a href="#" data-view="settings">Settings</a>
       </nav>
       <div id="view" class="admin-view"></div>`;
@@ -54,6 +55,7 @@ async function switchView(name) {
         'meeting-types': renderMeetingTypes,
         requests: renderRequests,
         calendars: renderCalendars,
+        cron: renderCron,
         settings: renderSettings,
     };
     view.innerHTML = '<p class="slot-empty">Loading…</p>';
@@ -95,13 +97,39 @@ if (loginForm) {
 
 async function renderDashboard(view) {
     const d = await api('api/admin/dashboard.php');
-    const badges = Object.entries(d.counts || {}).map(([k, n]) => `<span class="badge-dash">${esc(k)}: ${n}</span>`).join(' ');
+    const u = d.usage || {};
+    const counts = u.by_status || d.counts || {};
+    const max = Math.max(1, ...(u.daily || []).map(x => x.count));
+    const bars = (u.daily || []).map(x => `<div class="usage-bar" title="${esc(x.date)} — ${x.count}">
+        <div class="usage-bar-fill" style="height:${Math.max(2, Math.round((x.count / max) * 100))}%"></div>
+        <span class="usage-bar-day">${Number(x.date.slice(8, 10))}</span></div>`).join('');
+
     view.innerHTML = `
       <div class="booking-card">
         <p class="eyebrow">Dashboard</p>
         <h1 class="booking-heading">Eratotime</h1>
         ${d.warnings && d.warnings.length ? d.warnings.map(w => `<div class="status is-visible status-error">${esc(w)}</div>`).join('') : '<div class="status is-visible status-info">All systems nominal.</div>'}
-        <p class="admin-metrics">${badges}</p>
+
+        <div class="usage-cards">
+          <div class="usage-card"><p class="usage-num">${u.total ?? 0}</p><p class="usage-label">Requests all time</p></div>
+          <div class="usage-card"><p class="usage-num">${u.upcoming ?? 0}</p><p class="usage-label">Upcoming pending</p></div>
+          <div class="usage-card"><p class="usage-num">${counts.pending ?? 0}</p><p class="usage-label">Pending</p></div>
+          <div class="usage-card"><p class="usage-num">${counts.fulfilled ?? 0}</p><p class="usage-label">Fulfilled</p></div>
+          <div class="usage-card"><p class="usage-num">${(counts.cancelled ?? 0) + (counts.expired ?? 0)}</p><p class="usage-label">Cancelled / expired</p></div>
+        </div>
+
+        <p class="booking-step">Requests — last 30 days</p>
+        <div class="usage-bars">${bars}</div>
+
+        ${(u.by_type || []).length ? `
+        <p class="booking-step">By meeting type</p>
+        ${u.by_type.map(t => `
+          <div class="usage-type-row">
+            <span>${esc(t.type_name)}</span>
+            <span class="usage-type-count">${t.n}</span>
+          </div>`).join('')}` : ''}
+
+        <p class="booking-step">Actions</p>
         <p><a class="btn btn-primary" href="#" data-goto="availability">Edit availability</a></p>
       </div>`;
     view.querySelector('[data-goto]').addEventListener('click', async e => { e.preventDefault(); await switchView('availability'); });
@@ -423,6 +451,55 @@ async function renderCalendars(view) {
         } catch (e) {
             status.className = 'status is-visible status-error';
             status.textContent = e.message;
+        }
+    }));
+}
+
+// --- Cron ---------------------------------------------------------------------
+
+async function renderCron(view) {
+    const d = await api('api/admin/cron.php');
+    view.innerHTML = `
+      <div class="booking-card">
+        <p class="eyebrow">Scheduled jobs</p>
+        <h1 class="booking-heading">Cron</h1>
+        <p class="field-hint">One system cron calls <code>cron_dispatcher.php</code> every 5 minutes; jobs below run when due. Schedules and tracking live here.</p>
+        <div id="cron-list"></div>
+      </div>`;
+    renderCronList(view, d.jobs || []);
+}
+
+function renderCronList(view, jobs) {
+    const list = view.querySelector('#cron-list');
+    list.innerHTML = jobs.map(j => `
+      <div class="admin-row">
+        <div>
+          <strong>${esc(j.title)}</strong> <code>${esc(j.job_key)}</code>
+          <span class="badge-dash badge-${j.enabled ? 'on' : ''}">${j.enabled ? 'enabled' : 'disabled'}</span>
+          <div class="muted">${esc(j.description || '')}</div>
+          <div class="muted">handler: ${esc(j.handler)}</div>
+          <div class="muted">last run: ${esc(j.last_run_at || 'never')} · ${esc(j.last_status)} · ran ${j.run_count}×</div>
+          ${j.last_output ? `<details><summary class="muted">last output</summary><pre class="cron-output">${esc(j.last_output)}</pre></details>` : ''}
+        </div>
+        <div class="admin-row-actions">
+          <input class="field-input cron-sched" type="number" min="1" max="10080" value="${j.schedule_min}" data-key="${esc(j.job_key)}" title="Minutes between runs" style="width:74px">
+          <button type="button" class="btn btn-ghost btn-small" data-act="update" data-key="${esc(j.job_key)}">Save</button>
+          <button type="button" class="btn btn-ghost btn-small" data-act="run" data-key="${esc(j.job_key)}">Run now</button>
+          <button type="button" class="btn btn-ghost btn-small" data-act="toggle" data-key="${esc(j.job_key)}">${j.enabled ? 'Disable' : 'Enable'}</button>
+        </div>
+      </div>`).join('');
+
+    list.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', async () => {
+        const payload = { csrf: APP.dataset.csrf, job_key: b.dataset.key, action: b.dataset.act };
+        if (b.dataset.act === 'update') {
+            const input = list.querySelector(`.cron-sched[data-key="${b.dataset.key}"]`);
+            payload.schedule_min = Number(input.value);
+        }
+        try {
+            const r = await api('api/admin/cron.php', 'POST', payload);
+            renderCronList(view, r.jobs || []);
+        } catch (e) {
+            alert(e.message);
         }
     }));
 }

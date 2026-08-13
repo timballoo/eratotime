@@ -13,7 +13,9 @@ try {
         $counts[$r['status']] = (int) $r['n'];
     }
 
-    admin_json(['ok' => true, 'warnings' => admin_dashboard_warnings($pdo, $tenantId), 'counts' => $counts]);
+    $usage = admin_dashboard_usage($pdo, $tenantId, 30);
+
+    admin_json(['ok' => true, 'warnings' => admin_dashboard_warnings($pdo, $tenantId), 'counts' => $counts, 'usage' => $usage]);
 } catch (Throwable $e) {
     admin_json_out($e);
 }
