@@ -43,18 +43,22 @@ day-to-day runbook.
 
 ## Baïkal
 
-- Lives at `domains/meertec.ltd/public_html/baikal` (still inside the shared
-  doc root — its data is protected by the nightly backup).
+- Lives at `domains/book.meertec.ltd/public_html/baikal` (OUTSIDE the shared
+  `meertec.ltd` doc root — this is the durable fix for the recurring wipes).
+  Eratotime CI protects `baikal/` (`P baikal/` in `.rsyncignore`), so deploys
+  never delete it. The server `.env` `ERATO_CALDAV_URL` points here:
+  `https://book.meertec.ltd/baikal/html/dav.php/calendars/stephen@meertec.ltd/default/`.
 - **Restore from backup (preferred if data exists):** the nightly backup
   artifact contains `baikal/config/` and `baikal/Specific/` (Baïkal's users,
   calendar, SQLite DB, settings). Restore = redeploy vanilla Baïkal, then copy
   `config/` + `Specific/` back, then `php bin/setup_caldav.php`.
 - **Fresh vanilla install:** `bash bin/deploy_baikal.sh` on the box, then the
-  web installer at `https://www.meertec.ltd/baikal/html/` (SQLite → admin),
+  web installer at `https://book.meertec.ltd/baikal/html/` (SQLite → admin),
   then add user `stephen@meertec.ltd` + a calendar, then
   `php bin/setup_caldav.php` and `php cron/sync_calendars.php`.
 - Baïkal's server-side invite sending is not relied on — Thunderbird sends the
-  invites from `stephen@meertec.ltd`.
+  invites from `stephen@meertec.ltd`. Any CalDAV client (Thunderbird) must
+  point at the `book.meertec.ltd/baikal` URL above.
 
 ## Backup / restore
 
