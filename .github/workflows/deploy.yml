@@ -8,6 +8,7 @@ name: Deploy Eratotime via Rsync
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
