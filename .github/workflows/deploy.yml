@@ -93,7 +93,7 @@ jobs:
           # Clean stale host key, then register with retry
           ssh-keygen -R "[${HOSTINGER_IP}]:65002" 2>/dev/null || true
           for attempt in 1 2 3; do
-            if ssh-keyscan -p 65002 -t ed25519 -o ConnectTimeout=10 "${HOSTINGER_IP}" >> ~/.ssh/known_hosts 2>/dev/null; then
+            if ssh-keyscan -p 65002 -t ed25519 -T 10 "${HOSTINGER_IP}" >> ~/.ssh/known_hosts; then
               echo "ssh-keyscan succeeded on attempt $attempt"
               break
             fi
