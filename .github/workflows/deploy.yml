@@ -145,7 +145,7 @@ jobs:
           REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book"
 
           for attempt in 1 2 3; do
-            if $SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php"; then
+            if $SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && composer install --no-dev --no-interaction --prefer-dist --no-progress 2>&1 && php bin/migrate.php 2>&1"; then
               echo "Migrations succeeded on attempt $attempt"
               exit 0
             fi
