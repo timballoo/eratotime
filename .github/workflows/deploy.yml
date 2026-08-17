@@ -1,12 +1,11 @@
 name: Deploy Eratotime via Rsync
 
 # Deploy-on-commit: push to main runs the test suite, then rsyncs the app to the
-# book.meertec.ltd doc root on Hostinger (mirrors the cookingtogetherness
-# pattern). The app lives at domains/book.meertec.ltd/public_html — OUTSIDE the
-# shared meertec.ltd doc root — so the business site's deploys can never touch
-# it. Secrets (.env, config.php) and user uploads are never deployed nor
-# deleted (see .rsyncignore: `P` protects them). The idempotent schema is
-# re-applied after each deploy.
+# book.meertec.ltd doc root on Hostinger. book.meertec.ltd maps to
+# meertec.ltd/public_html/book/ (Hostinger-managed subdomain doc root).
+# Secrets (.env, config.php) and user uploads are never deployed nor deleted
+# (see .rsyncignore: `P` protects them). The idempotent schema is re-applied
+# after each deploy.
 
 on:
   push:
@@ -69,28 +68,100 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress --no-dev
 
       - name: Setup SSH key and known hosts
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
         run: |
+          set -e
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 700 ~/.ssh
+
+          # Auto-detect encoding to handle both raw and Base64 formatted secrets cleanly
+          if echo "$SSH_PRIVATE_KEY" | grep -q "BEGIN OPENSSH PRIVATE KEY"; then
+            echo "Detected RAW ED25519 key format. Writing directly..."
+            echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          else
+            echo "Detected BASE64 encoded key format. Decoding..."
+            echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_ed25519
+          fi
+
+          # Fix the common ED25519 parsing error by ensuring a trailing newline
+          echo "" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p 65002 ${{ secrets.HOSTINGER_IP }} >> ~/.ssh/known_hosts
+
+          # Clean stale host key, then register with retry
+          ssh-keygen -R "[${HOSTINGER_IP}]:65002" 2>/dev/null || true
+          for attempt in 1 2 3; do
+            if ssh-keyscan -p 65002 -t ed25519 -o ConnectTimeout=10 "${HOSTINGER_IP}" >> ~/.ssh/known_hosts 2>/dev/null; then
+              echo "ssh-keyscan succeeded on attempt $attempt"
+              break
+            fi
+            echo "ssh-keyscan attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done
+          if ! grep -q "${HOSTINGER_IP}" ~/.ssh/known_hosts 2>/dev/null; then
+            echo "ssh-keyscan failed after 3 attempts" && exit 1
+          fi
+
+          # Auth test with retry
+          for attempt in 1 2 3; do
+            if ssh -o BatchMode=yes -o ConnectTimeout=10 -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes "${HOSTINGER_USER}@${HOSTINGER_IP}" 'echo SSH_OK'; then
+              echo "SSH auth succeeded on attempt $attempt"
+              break
+            fi
+            echo "SSH auth attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done || { echo "SSH key auth failed after 3 attempts" && exit 1; }
 
       - name: Deploy via rsync
+        env:
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
         run: |
-          rsync -avz --delete \
-            --filter='merge .rsyncignore' \
-            -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
-            ./ \
-            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/book.meertec.ltd/public_html/
+          set -e
+
+          RSYNC_SSH="ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o KeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=10 -o IdentitiesOnly=yes -o ConnectTimeout=30"
+          REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book/"
+
+          for attempt in 1 2 3; do
+            if rsync -avz --delete \
+              --filter='merge .rsyncignore' \
+              -e "$RSYNC_SSH" \
+              ./ "${HOSTINGER_USER}@${HOSTINGER_IP}:${REMOTE}"; then
+              echo "Deploy succeeded on attempt $attempt"
+              break
+            fi
+            echo "Deploy attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done || { echo "Deploy failed after 3 attempts" && exit 1; }
 
       - name: Apply migrations (idempotent)
+        env:
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
         run: |
-          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
-            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }} \
-            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/book.meertec.ltd/public_html && php bin/migrate.php'
+          SSH_CMD="ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
+          REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book"
+
+          for attempt in 1 2 3; do
+            if $SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php"; then
+              echo "Migrations succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Migration attempt $attempt failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Migrations failed after 3 attempts" && exit 1
 
       - name: Smoke check booking page
         run: |
-          curl -sf -o /dev/null -w 'booking page HTTP %{http_code}\n' \
-            https://book.meertec.ltd/t/meertec/book/30-min || \
-            echo 'booking page not ready (likely missing ERATO_DB_PASS in server .env)'
+          for attempt in 1 2 3; do
+            if curl -sf -o /dev/null -w 'booking page HTTP %{http_code}\n' \
+              https://book.meertec.ltd/t/meertec/book/30-min; then
+              exit 0
+            fi
+            echo "Smoke check attempt $attempt failed, retrying in 10s..."
+            sleep 10
+          done
+          echo 'booking page not ready (likely missing ERATO_DB_PASS in server .env)'
