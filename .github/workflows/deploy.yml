@@ -40,7 +40,15 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: |
+          for attempt in 1 2 3; do
+            if composer install --no-interaction --prefer-dist --no-progress; then
+              echo "Composer install succeeded on attempt $attempt"
+              break
+            fi
+            echo "Composer install attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done || { echo "Composer install failed after 3 attempts" && exit 1; }
 
       - name: Run test suite
         env:
@@ -65,7 +73,15 @@ jobs:
           coverage: none
 
       - name: Install production dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress --no-dev
+        run: |
+          for attempt in 1 2 3; do
+            if composer install --no-interaction --prefer-dist --no-progress --no-dev; then
+              echo "Composer install succeeded on attempt $attempt"
+              break
+            fi
+            echo "Composer install attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done || { echo "Composer install failed after 3 attempts" && exit 1; }
 
       - name: Setup SSH key and known hosts
         env:
