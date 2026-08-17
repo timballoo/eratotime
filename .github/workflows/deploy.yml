@@ -166,8 +166,13 @@ jobs:
           HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
           HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
         run: |
+          set +e
           REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book"
-          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php"
+          OUTPUT=$(ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php" 2>&1)
+          RC=$?
+          echo "$OUTPUT" | sed "s/${HOSTINGER_USER}/USER/g; s/${HOSTINGER_IP}/HOST/g; s/${HOSTINGER_USER}@${HOSTINGER_IP}/USER@HOST/g"
+          echo "Exit code: $RC"
+          exit $RC
 
       - name: Smoke check booking page
         run: |
