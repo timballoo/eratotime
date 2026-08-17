@@ -162,7 +162,7 @@ jobs:
 
           for attempt in 1 2 3; do
             echo "--- Migration attempt $attempt ---"
-            OUTPUT=$($SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php 2>&1") && RC=0 || RC=$?
+            OUTPUT=$($SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php" 2>&1) && RC=0 || RC=$?
             echo "$OUTPUT"
             if [ "$RC" -eq 0 ]; then
               echo "Migrations succeeded on attempt $attempt"
