@@ -161,11 +161,14 @@ jobs:
           REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book"
 
           for attempt in 1 2 3; do
-            if $SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php 2>&1"; then
+            echo "--- Migration attempt $attempt ---"
+            OUTPUT=$($SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php 2>&1") && RC=0 || RC=$?
+            echo "$OUTPUT"
+            if [ "$RC" -eq 0 ]; then
               echo "Migrations succeeded on attempt $attempt"
               exit 0
             fi
-            echo "Migration attempt $attempt failed, retrying in 10s..."
+            echo "Migration attempt $attempt failed (exit $RC), retrying in 10s..."
             sleep 10
           done
           echo "Migrations failed after 3 attempts" && exit 1
