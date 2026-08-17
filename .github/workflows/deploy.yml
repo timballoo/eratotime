@@ -152,26 +152,22 @@ jobs:
             sleep 15
           done || { echo "Deploy failed after 3 attempts" && exit 1; }
 
+      - name: Test SSH before migrations
+        env:
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
+        run: |
+          echo "Testing SSH connection..."
+          ls -la ~/.ssh/
+          ssh -vvv -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 "${HOSTINGER_USER}@${HOSTINGER_IP}" 'echo SSH_OK' || true
+
       - name: Apply migrations (idempotent)
         env:
           HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
           HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
         run: |
-          SSH_CMD="ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30"
           REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book"
-
-          for attempt in 1 2 3; do
-            echo "--- Migration attempt $attempt ---"
-            OUTPUT=$($SSH_CMD "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php" 2>&1) && RC=0 || RC=$?
-            echo "$OUTPUT"
-            if [ "$RC" -eq 0 ]; then
-              echo "Migrations succeeded on attempt $attempt"
-              exit 0
-            fi
-            echo "Migration attempt $attempt failed (exit $RC), retrying in 10s..."
-            sleep 10
-          done
-          echo "Migrations failed after 3 attempts" && exit 1
+          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "${HOSTINGER_USER}@${HOSTINGER_IP}" "cd ${REMOTE} && php bin/migrate.php"
 
       - name: Smoke check booking page
         run: |
