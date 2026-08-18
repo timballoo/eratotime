@@ -75,10 +75,7 @@ function render() {
         ${CONFIG.types.length > 1 ? `
         <div class="type-toggle" role="group" aria-label="Meeting length">
           ${CONFIG.types.map(t => `
-            <button type="button" class="type-toggle-btn${t.slug === CONFIG.type_slug ? ' is-active' : ''}" data-type="${esc(t.slug)}"${t.slug === CONFIG.type_slug ? ' aria-pressed="true"' : ''}>
-              <span class="mt-name">${esc(t.name)}</span>
-              <span class="mt-dur">${t.duration_min} min</span>
-            </button>`).join('')}
+            <button type="button" class="type-toggle-btn${t.slug === CONFIG.type_slug ? ' is-active' : ''}" data-type="${esc(t.slug)}"${t.slug === CONFIG.type_slug ? ' aria-pressed="true"' : ''} title="${esc(t.name)}" aria-label="${esc(t.name)}">${t.duration_min} min</button>`).join('')}
         </div>` : ''}
 
         ${CONFIG.organizer.photo || CONFIG.organizer.bio ? `
@@ -89,14 +86,6 @@ function render() {
 
         <p class="meeting-type-desc" id="type-desc"${CONFIG.type.description ? '' : ' hidden'}>${esc(CONFIG.type.description || '')}</p>
         <p class="meeting-type-location" id="meeting-location">${locationLineHtml()}</p>
-
-        <div class="field field-video">
-          <label class="field-label">How would you like to connect?</label>
-          <div class="connect-toggle" role="radiogroup" aria-label="Meeting format">
-            <label class="connect-opt"><input type="radio" name="connect" value="video" checked> <span id="connect-video-label">Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}</span></label>
-            <label class="connect-opt"><input type="radio" name="connect" value="audio"> Audio only</label>
-          </div>
-        </div>
 
         <div class="tz-row">
           <label class="tz-label" for="tz-select">Your timezone</label>
@@ -112,6 +101,13 @@ function render() {
           </div>
           <div class="pick-col">
             <p class="booking-step">2 · Pick a time</p>
+            <div class="field field-video">
+              <label class="field-label">How would you like to connect?</label>
+              <div class="connect-toggle" role="radiogroup" aria-label="Meeting format">
+                <label class="connect-opt"><input type="radio" name="connect" value="video" checked> <span id="connect-video-label">Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}</span></label>
+                <label class="connect-opt"><input type="radio" name="connect" value="audio"> Audio only</label>
+              </div>
+            </div>
             <div id="slots-wrap"></div>
           </div>
         </div>
@@ -153,7 +149,7 @@ function render() {
     document.getElementById('guest-add').addEventListener('click', addGuestRow);
     document.getElementById('booking-form').addEventListener('submit', onSubmit);
     setupMonthNav();
-    refreshMonth();
+    autoSelectNext();
 }
 
 // Switch meeting type without a page reload: fetch the new type's config, swap
@@ -201,7 +197,7 @@ async function switchType(slug) {
         state.selectedOrgSlot = null;
         state.monthOffset = 0;
         renderSummary();
-        refreshMonth();
+        autoSelectNext();
     } catch (e) {
         setStatus(e.message, 'error');
     } finally {
@@ -345,7 +341,7 @@ function renderMonth(anchor, availableDates) {
     });
 }
 
-async function selectDate(date) {
+async function selectDate(date, autoPick = false) {
     state.selectedDate = date;
     state.selectedUtcSlot = null;
     state.selectedOrgSlot = null;
@@ -383,8 +379,27 @@ async function selectDate(date) {
                 renderSummary();
             });
         });
+        if (autoPick) {
+            const first = wrap.querySelector('.slot-btn:not(.is-closed)');
+            if (first) first.click();
+        }
     } catch (e) {
         wrap.innerHTML = `<p class="slot-empty">Couldn't load times: ${esc(e.message)}</p>`;
+    }
+}
+
+// Auto-select the next available slot: scan forward month by month until a day
+// with open slots is found, then pick its first time. Used on initial load and
+// after switching meeting type (the selection is otherwise user-driven).
+async function autoSelectNext() {
+    for (let off = 0; off < 2; off++) {
+        state.monthOffset = off;
+        await refreshMonth();
+        if (state.availableDates.size > 0) {
+            const dates = [...state.availableDates].sort(); // YYYY-MM-DD sorts chronologically
+            await selectDate(dates[0], true);
+            return;
+        }
     }
 }
 
