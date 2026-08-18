@@ -106,29 +106,21 @@ jobs:
           echo "" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-          # Clean stale host key, then register with retry
+          # Clean stale host key, then register with retry. Hostinger's SSH
+          # daemon on the custom port often ignores ssh-keyscan (probe times
+          # out with no reply), so bootstrap the host key via a real SSH
+          # handshake with StrictHostKeyChecking=accept-new instead.
           ssh-keygen -R "[${HOSTINGER_IP}]:65002" 2>/dev/null || true
           for attempt in 1 2 3; do
-            if ssh-keyscan -p 65002 -t ed25519 -T 10 "${HOSTINGER_IP}" >> ~/.ssh/known_hosts; then
-              echo "ssh-keyscan succeeded on attempt $attempt"
+            if ssh -o BatchMode=yes -o ConnectTimeout=30 -p 65002 -i ~/.ssh/id_ed25519 \
+              -o StrictHostKeyChecking=accept-new "${HOSTINGER_USER}@${HOSTINGER_IP}" 'echo SSH_OK'; then
+              echo "SSH auth + host key bootstrap succeeded on attempt $attempt"
               break
             fi
-            echo "ssh-keyscan attempt $attempt failed, retrying in 5s..."
-            sleep 5
-          done
-          if ! grep -q "${HOSTINGER_IP}" ~/.ssh/known_hosts 2>/dev/null; then
-            echo "ssh-keyscan failed after 3 attempts" && exit 1
-          fi
-
-          # Auth test with retry
-          for attempt in 1 2 3; do
-            if ssh -o BatchMode=yes -o ConnectTimeout=10 -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes "${HOSTINGER_USER}@${HOSTINGER_IP}" 'echo SSH_OK'; then
-              echo "SSH auth succeeded on attempt $attempt"
-              break
-            fi
-            echo "SSH auth attempt $attempt failed, retrying in 5s..."
+            echo "SSH attempt $attempt failed, retrying in 5s..."
             sleep 5
           done || { echo "SSH key auth failed after 3 attempts" && exit 1; }
+          grep -q "${HOSTINGER_IP}" ~/.ssh/known_hosts 2>/dev/null || { echo "host key not recorded" && exit 1; }
 
       - name: Deploy via rsync
         env:

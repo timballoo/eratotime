@@ -25,7 +25,11 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p 65002 ${{ secrets.HOSTINGER_IP }} >> ~/.ssh/known_hosts
+          # Hostinger's SSH on the custom port ignores ssh-keyscan; bootstrap the
+          # host key + verify auth via a real handshake instead.
+          ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new \
+            -p 65002 -i ~/.ssh/id_ed25519 \
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }} 'echo SSH_OK'
 
       - name: Run backup on server
         run: |
