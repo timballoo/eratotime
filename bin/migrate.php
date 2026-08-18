@@ -58,5 +58,6 @@ function migrate_add_column(PDO $pdo, string $table, string $column, string $def
 }
 
 migrate_add_column($pdo, 'meeting_types', 'video_link', 'VARCHAR(255) NULL');
+migrate_add_column($pdo, 'meeting_types', 'message_template', 'TEXT NULL');
 migrate_add_column($pdo, 'request_log', 'video_call', 'TINYINT(1) NOT NULL DEFAULT 0');
 exit(0);

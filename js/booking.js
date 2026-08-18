@@ -70,7 +70,7 @@ function esc(s) {
 function render() {
     APP.innerHTML = `
       <div class="booking-card">
-        <p class="eyebrow">Meertec &nbsp;·&nbsp; ${esc(CONFIG.type.name)}</p>
+        <p class="eyebrow">Meertec</p>
         <h1 class="booking-heading">Book a conversation</h1>
 
         ${CONFIG.types.length > 1 ? `
@@ -92,8 +92,12 @@ function render() {
         </div>
         ${CONFIG.type.description ? `<p class="meeting-type-desc">${esc(CONFIG.type.description)}</p>` : ''}
         <p class="meeting-type-location" id="meeting-location">${locationLineHtml()}</p>
-        <div class="field field-video"${CONFIG.type.video_link ? '' : ' style="display:none"'}>
-          <label class="field-label field-label-check"><input type="checkbox" id="f-video" name="video_call" checked> Video call — connect via Google Meet</label>
+        <div class="field field-video">
+          <label class="field-label">How would you like to connect?</label>
+          <div class="connect-toggle" role="radiogroup" aria-label="Meeting format">
+            <label class="connect-opt"><input type="radio" name="connect" value="video" checked> Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}</label>
+            <label class="connect-opt"><input type="radio" name="connect" value="audio"> Audio only</label>
+          </div>
         </div>
 
         <div class="tz-row">
@@ -137,11 +141,11 @@ function render() {
 
     populateTzSelect();
     document.getElementById('tz-select').addEventListener('change', e => { state.timezone = e.target.value; refreshSlots(); });
-    document.getElementById('f-video').addEventListener('change', () => {
+    document.querySelectorAll('input[name="connect"]').forEach(r => r.addEventListener('change', () => {
         const loc = document.getElementById('meeting-location');
         if (loc) loc.innerHTML = locationLineHtml();
         renderSummary();
-    });
+    }));
     document.getElementById('guest-add').addEventListener('click', addGuestRow);
     document.getElementById('booking-form').addEventListener('submit', onSubmit);
     setupMonthNav();
@@ -154,10 +158,10 @@ function locationHref(raw) {
 }
 
 function videoWanted() {
-    const box = document.getElementById('f-video');
-    // The checkbox defaults to checked; before it's in the DOM (during initial
-    // template evaluation) treat the video option as selected.
-    return !box || box.checked;
+    const sel = document.querySelector('input[name="connect"]:checked');
+    // The video radio defaults to checked; before it's in the DOM (during
+    // initial template evaluation) treat the video option as selected.
+    return !sel || sel.value === 'video';
 }
 
 // Location line shown near the meeting type: when a video link is configured
@@ -297,18 +301,24 @@ async function selectDate(date) {
         const body = await api({ date });
         const fmt = new Intl.DateTimeFormat(LOCALE, { timeZone: state.timezone, weekday: 'long', day: 'numeric', month: 'long' });
         const localDay = fmt.format(new Date(body.utc_slots[0] || `${date}T12:00:00`));
-        if (body.slots.length === 0) {
+        const grid = Array.isArray(body.grid) && body.grid.length
+            ? body.grid
+            : body.slots.map((s, i) => ({ time: s, utc: body.utc_slots[i], open: true }));
+        if (grid.filter(g => g.open).length === 0) {
             wrap.innerHTML = `<p class="slot-empty">No open times on ${esc(localDay)}. Try another day.</p>`;
             return;
         }
-        const items = body.utc_slots.map((iso, i) => {
-            const time = formatTimeInTz(iso, state.timezone);
-            const shownDay = formatDayInTz(iso, state.timezone);
-            const crossDay = !iso.startsWith(date);
-            return `<li><button type="button" class="slot-btn" data-iso="${esc(iso)}" data-org="${esc(body.slots[i])}">${esc(time)}${crossDay ? ' (' + esc(shownDay) + ')' : ''}</button></li>`;
+        const items = grid.map(g => {
+            const time = formatTimeInTz(g.utc, state.timezone);
+            const shownDay = formatDayInTz(g.utc, state.timezone);
+            const crossDay = !g.utc.startsWith(date);
+            const label = `${esc(time)}${crossDay ? ' (' + esc(shownDay) + ')' : ''}`;
+            return g.open
+                ? `<li><button type="button" class="slot-btn" data-iso="${esc(g.utc)}" data-org="${esc(g.time)}">${label}</button></li>`
+                : `<li><button type="button" class="slot-btn is-closed" disabled tabindex="-1" aria-disabled="true" title="Unavailable">${label}</button></li>`;
         });
         wrap.innerHTML = `<p class="slot-date-note">${esc(localDay)} — shown in your timezone (${esc(state.timezone)})</p><ul class="slot-list">${items.join('')}</ul>`;
-        wrap.querySelectorAll('.slot-btn').forEach(btn => {
+        wrap.querySelectorAll('.slot-btn:not(.is-closed)').forEach(btn => {
             btn.addEventListener('click', () => {
                 state.selectedUtcSlot = btn.dataset.iso;
                 state.selectedOrgSlot = btn.dataset.org;

@@ -330,6 +330,7 @@ async function renderMtEditor(view, t) {
           <div class="field"><label class="field-label">Description</label><textarea class="field-textarea" name="description" rows="2">${esc(v.description || '')}</textarea></div>
           <div class="field"><label class="field-label">Location / meeting details (phone, Meet link, address)</label><input class="field-input" name="location_details" value="${esc(v.location_details || '')}"></div>
           <div class="field"><label class="field-label">Video call link (Google Meet) — optional, enables the 'Video call' option</label><input class="field-input" name="video_link" value="${esc(v.video_link || '')}" placeholder="https://meet.google.com/..."></div>
+          <div class="field"><label class="field-label">Event message template <span class="field-hint">goes in the calendar event + confirmation email. Placeholders: {name} {type} {date} {location} {meet_link} {answers} {guests}</span></label><textarea class="field-textarea" name="message_template" rows="3" placeholder="e.g. Looking forward to our {type}. Please be ready with any questions on {date}.">${esc(v.message_template || '')}</textarea></div>
           <div class="grid2">
             <div class="field"><label class="field-label">Buffer before (min)</label><input class="field-input" name="buffer_before_min" type="number" min="0" value="${v.buffer_before_min}"></div>
             <div class="field"><label class="field-label">Buffer after (min)</label><input class="field-input" name="buffer_after_min" type="number" min="0" value="${v.buffer_after_min}"></div>
@@ -360,7 +361,7 @@ async function renderMtEditor(view, t) {
         const payload = { csrf: APP.dataset.csrf, id: t ? t.id : 0, questions,
             name: fd.get('name'), slug: fd.get('slug'), duration_min: Number(fd.get('duration_min')),
             description: fd.get('description'), location_details: fd.get('location_details'),
-            video_link: fd.get('video_link'),
+            video_link: fd.get('video_link'), message_template: fd.get('message_template'),
             buffer_before_min: Number(fd.get('buffer_before_min')), buffer_after_min: Number(fd.get('buffer_after_min')),
             min_notice_hours: Number(fd.get('min_notice_hours')), max_horizon_days: Number(fd.get('max_horizon_days')),
             daily_cap: fd.get('daily_cap'), active: fd.get('active') ? 1 : 0 };

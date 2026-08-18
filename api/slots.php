@@ -116,12 +116,34 @@ try {
         $dt = new DateTimeImmutable($date . ' ' . $slot . ':00', $ctx['org_tz']);
         $utcSlots[] = $dt->setTimezone(new DateTimeZone('UTC'))->format('c');
     }
+
+    // Full grid for the day: every grid-aligned time in the open window, marked
+    // open/closed, with its UTC instant so the client can render all times in
+    // the invitee's timezone (unavailable times shown struck out, not hidden).
+    $grid = [];
+    if ($r['schedule'] !== null) {
+        $granularity = 30;
+        [$sh, $sm] = array_map('intval', explode(':', $r['schedule']['start']));
+        [$eh, $em] = array_map('intval', explode(':', $r['schedule']['end']));
+        $openSet = array_flip($r['slots']);
+        for ($m = $sh * 60 + $sm; $m <= $eh * 60 + $em; $m += $granularity) {
+            $t = sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
+            $dt = new DateTimeImmutable($date . ' ' . $t . ':00', $ctx['org_tz']);
+            $grid[] = [
+                'time' => $t,
+                'utc' => $dt->setTimezone(new DateTimeZone('UTC'))->format('c'),
+                'open' => isset($openSet[$t]),
+            ];
+        }
+    }
+
     slots_json_ok([
         'ok' => true, 'stale' => false, 'type' => $typeInfo,
         'org_tz' => $ctx['org_tz_name'],
         'schedule' => $r['schedule'],
         'slots' => $r['slots'],
         'utc_slots' => $utcSlots,
+        'grid' => $grid,
     ]);
 } catch (Throwable $e) {
     slots_json_out($e, $e instanceof RuntimeException && in_array($e->getMessage(), ['tenant not found', 'meeting type not found or inactive'], true) ? 404 : 500);

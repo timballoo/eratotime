@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS meeting_types (
     duration_min      SMALLINT UNSIGNED NOT NULL,
     location_details  VARCHAR(255) NULL,
     video_link        VARCHAR(255) NULL,
+    message_template  TEXT NULL,
     buffer_before_min SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     buffer_after_min  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     min_notice_hours  SMALLINT UNSIGNED NOT NULL DEFAULT 24,

@@ -174,6 +174,10 @@ html { scroll-behavior: smooth; }
 }
 .date-cell.is-selected { background: var(--brass); border-color: var(--brass); color: var(--ink); }
 .date-cell.is-today { outline: 1px solid var(--brass); outline-offset: -1px; }
+.date-cell:disabled {
+  color: var(--paper-text-lo); opacity: 0.55;
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
 
 /* ---------- Slots ---------- */
 .slot-list { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 0; padding: 0; }
@@ -185,8 +189,24 @@ html { scroll-behavior: smooth; }
 }
 .slot-btn:hover, .slot-btn:focus-visible { border-color: var(--brass); background: var(--paper-alt); }
 .slot-btn.is-selected { background: var(--ink); border-color: var(--ink); color: var(--ink-text-hi); }
+.slot-btn.is-closed {
+  color: var(--paper-text-lo); opacity: 0.5; cursor: default;
+  text-decoration: line-through; text-decoration-thickness: 1px;
+}
 .slot-empty { color: var(--paper-text-lo); font-size: 0.9rem; margin: 0; }
 .slot-date-note { font-family: var(--font-mono); font-size: 0.78rem; color: var(--paper-text-lo); margin: 0 0 14px; }
+
+/* ---------- Connect (video / audio) toggle ---------- */
+.connect-toggle { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.connect-opt {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--paper-line); border-radius: var(--radius);
+  padding: 7px 12px; font-size: 0.9rem; color: var(--paper-text-hi);
+  cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease;
+}
+.connect-opt:hover { border-color: var(--brass); }
+.connect-opt:has(input:checked) { background: var(--ink); border-color: var(--ink); color: var(--ink-text-hi); }
+.connect-opt input { accent-color: var(--brass); }
 
 /* ---------- Form ---------- */
 .booking-form .field { margin-bottom: 16px; }

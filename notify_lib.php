@@ -113,20 +113,57 @@ if (!function_exists('notify_send_email')) {
     }
 
     /**
+     * Render a per-meeting-type message template with simple placeholders.
+     * Supported: {name} {type} {date} {location} {meet_link} {answers} {guests}.
+     */
+    function notify_render_message(string $tpl, array $request, array $type, array $settings, string $tzName): string
+    {
+        $answers = is_array($request['custom_answers'] ?? null) ? $request['custom_answers'] : json_decode((string) ($request['custom_answers'] ?? '{}'), true);
+        $answers = is_array($answers) ? $answers : [];
+        $answerLines = [];
+        foreach ($answers as $a) {
+            $label = (string) ($a['label'] ?? 'Question');
+            $answer = (string) ($a['answer'] ?? '');
+            if ($answer !== '') {
+                $answerLines[] = $label . ': ' . $answer;
+            }
+        }
+        $guests = is_array($request['guest_emails'] ?? null) ? $request['guest_emails'] : json_decode((string) ($request['guest_emails'] ?? '[]'), true);
+        $loc = notify_meeting_location($request, $type);
+        $map = [
+            '{name}' => (string) ($request['invitee_name'] ?? ''),
+            '{type}' => (string) ($type['name'] ?? ''),
+            '{date}' => notify_format_time((string) $request['requested_start_utc'], $tzName),
+            '{location}' => (string) $loc,
+            '{meet_link}' => (!empty($request['video_call']) && !empty($type['video_link'])) ? (string) $type['video_link'] : '',
+            '{answers}' => implode("\n", $answerLines),
+            '{guests}' => is_array($guests) ? implode(', ', $guests) : '',
+        ];
+        return strtr($tpl, $map);
+    }
+
+    /**
      * Build the organizer's .ics calendar-import file (Sabre/VObject).
      * SUMMARY follows the 2.5 convention; LOCATION carries the Meet link
      * (or the default location) per the invitee's video-call choice.
+     * DESCRIPTION uses the meeting type's message_template when set (answers
+     * via {answers}); otherwise falls back to the standard Q&A block.
      */
     function notify_build_ics(array $request, array $type, array $settings): string
     {
         $answers = is_array($request['custom_answers'] ?? null) ? $request['custom_answers'] : json_decode((string) ($request['custom_answers'] ?? '{}'), true);
         $answers = is_array($answers) ? $answers : [];
         $lines = [];
-        foreach ($answers as $a) {
-            $label = $a['label'] ?? 'Question';
-            $answer = (string) ($a['answer'] ?? '');
-            if ($answer !== '') {
-                $lines[] = $label . ': ' . $answer;
+        if (!empty($type['message_template'])) {
+            $orgTz = (string) ($settings['organizer_timezone'] ?? 'Europe/London');
+            $lines[] = notify_render_message((string) $type['message_template'], $request, $type, $settings, $orgTz);
+        } else {
+            foreach ($answers as $a) {
+                $label = $a['label'] ?? 'Question';
+                $answer = (string) ($a['answer'] ?? '');
+                if ($answer !== '') {
+                    $lines[] = $label . ': ' . $answer;
+                }
             }
         }
         if (!empty($request['video_call']) && !empty($type['video_link'])) {
@@ -170,6 +207,10 @@ if (!function_exists('notify_send_email')) {
         if ($loc !== null) {
             $href = preg_match('#^https?://#i', $loc) ? $loc : 'mailto:' . $loc;
             $html .= '<p>Where: <a href="' . htmlspecialchars($href) . '">' . htmlspecialchars($loc) . '</a></p>';
+        }
+        $msg = !empty($type['message_template']) ? notify_render_message((string) $type['message_template'], $request, $type, $settings, $tz) : '';
+        if ($msg !== '') {
+            $html .= '<p style="white-space:pre-wrap;border-left:3px solid #B08D57;padding:2px 0 2px 16px;color:#5A564E">' . nl2br(htmlspecialchars($msg)) . '</p>';
         }
         $html .= '<p>Dr Stephen D. Jones will confirm the meeting by sending the calendar invitation. ' .
             'If you need to change or cancel, reply to this email or contact ' .
@@ -232,7 +273,7 @@ if (!function_exists('notify_send_email')) {
             "SELECT o.id AS outbox_id, o.template, o.recipient, o.status, o.attempts, o.last_attempt_at, o.next_retry_at,
                     r.id AS request_id, r.invitee_name, r.invitee_email, r.invitee_timezone,
                     r.guest_emails, r.custom_answers, r.video_call, r.requested_start_utc, r.requested_end_utc,
-                    mt.name AS type_name, mt.duration_min, mt.location_details, mt.video_link,
+                    mt.name AS type_name, mt.duration_min, mt.location_details, mt.video_link, mt.message_template,
                     g.organizer_timezone, g.mailbox_destination, g.whatsapp_destination_number
                FROM notification_outbox o
                JOIN request_log r ON r.id = o.request_log_id
@@ -256,7 +297,7 @@ if (!function_exists('notify_send_email')) {
                 'requested_start_utc' => $row['requested_start_utc'],
                 'requested_end_utc' => $row['requested_end_utc'],
             ];
-            $type = ['name' => $row['type_name'], 'duration_min' => $row['duration_min'], 'location_details' => $row['location_details'], 'video_link' => $row['video_link']];
+            $type = ['name' => $row['type_name'], 'duration_min' => $row['duration_min'], 'location_details' => $row['location_details'], 'video_link' => $row['video_link'], 'message_template' => $row['message_template']];
             $settings = [
                 'organizer_timezone' => $row['organizer_timezone'],
                 'mailbox_destination' => $row['mailbox_destination'],
