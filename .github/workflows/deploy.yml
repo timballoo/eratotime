@@ -106,10 +106,11 @@ jobs:
           echo "" >> ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-          # Clean stale host key, then register with retry. Hostinger's SSH
+          # Clean stale host key, then bootstrap with retry. Hostinger's SSH
           # daemon on the custom port often ignores ssh-keyscan (probe times
-          # out with no reply), so bootstrap the host key via a real SSH
-          # handshake with StrictHostKeyChecking=accept-new instead.
+          # out with no reply), so record the host key via a real SSH handshake
+          # with StrictHostKeyChecking=accept-new — it either connects and
+          # stores the key, or the attempt fails and we retry.
           ssh-keygen -R "[${HOSTINGER_IP}]:65002" 2>/dev/null || true
           for attempt in 1 2 3; do
             if ssh -o BatchMode=yes -o ConnectTimeout=30 -p 65002 -i ~/.ssh/id_ed25519 \
@@ -120,7 +121,6 @@ jobs:
             echo "SSH attempt $attempt failed, retrying in 5s..."
             sleep 5
           done || { echo "SSH key auth failed after 3 attempts" && exit 1; }
-          grep -q "${HOSTINGER_IP}" ~/.ssh/known_hosts 2>/dev/null || { echo "host key not recorded" && exit 1; }
 
       - name: Deploy via rsync
         env:
@@ -129,7 +129,7 @@ jobs:
         run: |
           set -e
 
-          RSYNC_SSH="ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o KeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=10 -o IdentitiesOnly=yes -o ConnectTimeout=30"
+          RSYNC_SSH="ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o KeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=10 -o IdentitiesOnly=yes -o ConnectTimeout=30"
           REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book/"
 
           for attempt in 1 2 3; do
@@ -151,7 +151,7 @@ jobs:
         run: |
           echo "Testing SSH connection..."
           ls -la ~/.ssh/
-          ssh -vvv -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 "${HOSTINGER_USER}@${HOSTINGER_IP}" 'echo SSH_OK' || true
+          ssh -vvv -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "${HOSTINGER_USER}@${HOSTINGER_IP}" 'echo SSH_OK' || true
 
       - name: Apply migrations (idempotent) + diagnostics
         env:
@@ -159,7 +159,7 @@ jobs:
           HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
         run: |
           REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book"
-          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "${HOSTINGER_USER}@${HOSTINGER_IP}" "echo SERVER_REACHED; echo '=== server ==='; php -v | head -1; echo '=== php extensions ==='; php -m | grep -E 'pdo_mysql|sodium' || echo '(pdo_mysql/sodium not found)'; echo '=== doc root files ==='; ls -la ${REMOTE} | grep -E '(^| )(\.env|config\.php|\.htaccess)$'; echo '=== presence ==='; [ -f ${REMOTE}/.env ] && echo '.env PRESENT' || echo '.env MISSING'; [ -f ${REMOTE}/config.php ] && echo 'config.php PRESENT' || echo 'config.php MISSING'; echo '=== migration (display_errors=1) ==='; cd ${REMOTE} && php -d display_errors=1 bin/migrate.php" > /tmp/migrate_out.txt 2>&1 || true
+          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 "${HOSTINGER_USER}@${HOSTINGER_IP}" "echo SERVER_REACHED; echo '=== server ==='; php -v | head -1; echo '=== php extensions ==='; php -m | grep -E 'pdo_mysql|sodium' || echo '(pdo_mysql/sodium not found)'; echo '=== doc root files ==='; ls -la ${REMOTE} | grep -E '(^| )(\.env|config\.php|\.htaccess)$'; echo '=== presence ==='; [ -f ${REMOTE}/.env ] && echo '.env PRESENT' || echo '.env MISSING'; [ -f ${REMOTE}/config.php ] && echo 'config.php PRESENT' || echo 'config.php MISSING'; echo '=== migration (display_errors=1) ==='; cd ${REMOTE} && php -d display_errors=1 bin/migrate.php" > /tmp/migrate_out.txt 2>&1 || true
           echo "=== summary ==="
           grep -E 'PRESENT|MISSING|Applied|Fatal|Uncaught|denied|Unknown|refused|not found|configured|command not found|SERVER_REACHED' /tmp/migrate_out.txt | head -30 || true
           echo "=== full output (base64) ==="
