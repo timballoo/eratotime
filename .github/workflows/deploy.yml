@@ -161,17 +161,17 @@ jobs:
           ls -la ~/.ssh/
           ssh -vvv -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=10 "${HOSTINGER_USER}@${HOSTINGER_IP}" 'echo SSH_OK' || true
 
-      - name: Apply migrations (idempotent)
+      - name: Apply migrations (idempotent) + diagnostics
         env:
           HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
           HOSTINGER_IP: ${{ secrets.HOSTINGER_IP }}
         run: |
           REMOTE="/home/${HOSTINGER_USER}/domains/meertec.ltd/public_html/book"
-          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "${HOSTINGER_USER}@${HOSTINGER_IP}" "echo SERVER_REACHED && cd ${REMOTE} && ls vendor/autoload.php && php bin/migrate.php" > /tmp/migrate_out.txt 2>&1 || true
-          echo "=== base64 encoded output ==="
+          ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o ConnectTimeout=30 "${HOSTINGER_USER}@${HOSTINGER_IP}" "echo SERVER_REACHED; echo '=== server ==='; php -v | head -1; echo '=== php extensions ==='; php -m | grep -E 'pdo_mysql|sodium' || echo '(pdo_mysql/sodium not found)'; echo '=== doc root files ==='; ls -la ${REMOTE} | grep -E '(^| )(\.env|config\.php|\.htaccess)$'; echo '=== presence ==='; [ -f ${REMOTE}/.env ] && echo '.env PRESENT' || echo '.env MISSING'; [ -f ${REMOTE}/config.php ] && echo 'config.php PRESENT' || echo 'config.php MISSING'; echo '=== migration (display_errors=1) ==='; cd ${REMOTE} && php -d display_errors=1 bin/migrate.php" > /tmp/migrate_out.txt 2>&1 || true
+          echo "=== summary ==="
+          grep -E 'PRESENT|MISSING|Applied|Fatal|Uncaught|denied|Unknown|refused|not found|configured|command not found|SERVER_REACHED' /tmp/migrate_out.txt | head -30 || true
+          echo "=== full output (base64) ==="
           base64 /tmp/migrate_out.txt
-          echo "=== exit code ==="
-          cat /tmp/migrate_out.txt | grep -c "SERVER_REACHED" && echo "SSH connected OK" || echo "SSH never connected"
 
       - name: Smoke check booking page
         run: |
