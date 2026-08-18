@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup SSH key and known hosts
         run: |
@@ -47,7 +47,7 @@ jobs:
 
       - name: Package and upload artifact
         run: tar czf backup/eratotime-backup.tar.gz -C backup eratotime baikal
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: eratotime-backup
           path: backup/eratotime-backup.tar.gz
