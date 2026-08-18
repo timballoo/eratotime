@@ -49,20 +49,31 @@ final class RequestSubmitTest extends TestCase
         return ['smtp' => []]; // dev mode: notify sends are no-ops
     }
 
-    /** An open slot at 10:00 London on the next weekday at/after $minDayOffset, as UTC ISO. */
+    /** An open slot at 10:00 London as UTC ISO. $minDayOffset counts weekdays
+     *  from the next weekday on/after today, so distinct offsets always yield
+     *  distinct weekday dates regardless of what weekday "now" is. (The old
+     *  "next weekday at/after +d days" logic could collapse 4 and 5 onto the
+     *  same Monday when the target day fell on a weekend, making the suite
+     *  Tuesday/Wednesday-dependent.) */
     private function openSlotUtc(int $minDayOffset, string $type = '30-min'): string
     {
         $tz = new DateTimeZone('Europe/London');
-        $base = new DateTimeImmutable('now', $tz);
-        $d = $minDayOffset;
-        while (true) {
-            $candidate = $base->modify("+{$d} days");
-            if ((int) $candidate->format('N') <= 5) { // Mon..Fri
-                $date = $candidate->format('Y-m-d');
-                return (new DateTimeImmutable($date . ' 10:00:00', $tz))->setTimezone(new DateTimeZone('UTC'))->format('c');
-            }
-            $d++;
+        $now = new DateTimeImmutable('now', $tz);
+        $snap = $now;
+        while ((int) $snap->format('N') > 5) { // weekend -> next Monday
+            $snap = $snap->modify('+1 day');
         }
+        $date = $snap;
+        $count = 0;
+        while ($count < $minDayOffset) { // step weekday-by-weekday
+            $date = $date->modify('+1 day');
+            if ((int) $date->format('N') <= 5) {
+                $count++;
+            }
+        }
+        return (new DateTimeImmutable($date->format('Y-m-d') . ' 10:00:00', $tz))
+            ->setTimezone(new DateTimeZone('UTC'))
+            ->format('c');
     }
 
     private function baseInput(int $dayOffset, string $email = 'ada@example.com'): array
