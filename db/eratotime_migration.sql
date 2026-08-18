@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS global_settings (
     organizer_timezone          VARCHAR(64) NOT NULL DEFAULT 'Europe/London',
     request_hold_hours          SMALLINT UNSIGNED NOT NULL DEFAULT 24,
     request_log_retention_days  SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+    meet_link               VARCHAR(255) NULL,
     UNIQUE KEY uq_global_settings_tenant (tenant_id),
     CONSTRAINT fk_global_settings_tenant
         FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE

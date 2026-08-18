@@ -531,6 +531,7 @@ async function renderSettings(view) {
             <div class="field"><label class="field-label">Organizer timezone</label><input class="field-input" name="organizer_timezone" value="${esc(s.organizer_timezone || 'Europe/London')}"></div>
             <div class="field"><label class="field-label">WhatsApp enabled</label><input type="checkbox" name="whatsapp_enabled" ${s.whatsapp_enabled ? 'checked' : ''}></div>
             <div class="field"><label class="field-label">WhatsApp destination number</label><input class="field-input" name="whatsapp_destination_number" value="${esc(s.whatsapp_destination_number || '')}"></div>
+            <div class="field"><label class="field-label">Default Google Meet link</label><input class="field-input" name="meet_link" value="${esc(s.meet_link || '')}" placeholder="https://meet.google.com/..."></div>
           </div>
           <button type="submit" class="btn btn-primary">Save</button>
           <div id="set-status" class="status"></div>
@@ -544,7 +545,8 @@ async function renderSettings(view) {
             organizer_bio: fd.get('organizer_bio'), global_daily_cap: fd.get('global_daily_cap'),
             global_weekly_cap: fd.get('global_weekly_cap'), whatsapp_enabled: fd.get('whatsapp_enabled') ? 1 : 0,
             whatsapp_destination_number: fd.get('whatsapp_destination_number'), organizer_timezone: fd.get('organizer_timezone'),
-            request_hold_hours: Number(fd.get('request_hold_hours') || 24), request_log_retention_days: Number(fd.get('request_log_retention_days') || 30) };
+            request_hold_hours: Number(fd.get('request_hold_hours') || 24), request_log_retention_days: Number(fd.get('request_log_retention_days') || 30),
+            meet_link: fd.get('meet_link') };
         status.className = 'status is-visible status-info';
         status.textContent = 'Saving…';
         try {

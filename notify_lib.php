@@ -101,15 +101,46 @@ if (!function_exists('notify_send_email')) {
     /**
      * Resolve the meeting location: when the invitee chose a video call and the
      * meeting type has a video link, the Google Meet link wins; otherwise the
-     * meeting type's default location/details applies. Returns null if neither.
+     * meeting type's default location/details applies.  Falls back to the global
+     * meet_link from settings when no per-type link is set.
      */
-    function notify_meeting_location(array $request, array $type): ?string
+    function notify_meeting_location(array $request, array $type, array $settings = []): ?string
     {
         if (!empty($request['video_call']) && !empty($type['video_link'])) {
             return (string) $type['video_link'];
         }
         $default = $type['location_details'] ?? null;
+        if (($default === null || $default === '') && !empty($settings['meet_link'])) {
+            return (string) $settings['meet_link'];
+        }
         return ($default === null || $default === '') ? null : (string) $default;
+    }
+
+    /**
+     * Load the email signature HTML from email_signature.html (one level up from
+     * notify_lib.php).  Returns empty string if the file is missing.
+     */
+    function notify_signature_html(): string
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+        $path = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'email_signature.html';
+        $cached = is_file($path) ? (string) file_get_contents($path) : '';
+        return $cached;
+    }
+
+    /**
+     * Wrap a signature block in a separator + inline-styled wrapper.
+     */
+    function notify_signature_block(): string
+    {
+        $html = notify_signature_html();
+        if ($html === '') {
+            return '';
+        }
+        return '<div style="margin-top:24px;padding-top:16px;border-top:1px solid #ddd;color:#999;font-size:12px">' . $html . '</div>';
     }
 
     /**
@@ -129,7 +160,7 @@ if (!function_exists('notify_send_email')) {
             }
         }
         $guests = is_array($request['guest_emails'] ?? null) ? $request['guest_emails'] : json_decode((string) ($request['guest_emails'] ?? '[]'), true);
-        $loc = notify_meeting_location($request, $type);
+        $loc = notify_meeting_location($request, $type, $settings);
         $map = [
             '{name}' => (string) ($request['invitee_name'] ?? ''),
             '{type}' => (string) ($type['name'] ?? ''),
@@ -182,7 +213,7 @@ if (!function_exists('notify_send_email')) {
             'SUMMARY' => 'Eratotime: ' . $type['name'] . ' — ' . $request['invitee_name'],
             'DTSTART' => new DateTimeImmutable($request['requested_start_utc'], new DateTimeZone('UTC')),
             'DTEND' => new DateTimeImmutable($request['requested_end_utc'], new DateTimeZone('UTC')),
-            'LOCATION' => (string) (notify_meeting_location($request, $type) ?? ''),
+            'LOCATION' => (string) (notify_meeting_location($request, $type, $settings) ?? ''),
             'DESCRIPTION' => implode("\n", $lines),
         ]);
         return $vcal->serialize();
@@ -203,7 +234,7 @@ if (!function_exists('notify_send_email')) {
             '<p style="background:#F6F3EC;border-left:3px solid #B08D57;padding:12px 16px">' .
             '<strong>' . htmlspecialchars($type['name']) . '</strong> · ' . htmlspecialchars($when) . '<br>' .
             'Duration: ' . (int) $type['duration_min'] . ' minutes</p>';
-        $loc = notify_meeting_location($request, $type);
+        $loc = notify_meeting_location($request, $type, $settings);
         if ($loc !== null) {
             $href = preg_match('#^https?://#i', $loc) ? $loc : 'mailto:' . $loc;
             $html .= '<p>Where: <a href="' . htmlspecialchars($href) . '">' . htmlspecialchars($loc) . '</a></p>';
@@ -214,7 +245,8 @@ if (!function_exists('notify_send_email')) {
         }
         $html .= '<p>Dr Stephen D. Jones will confirm the meeting by sending the calendar invitation. ' .
             'If you need to change or cancel, reply to this email or contact ' .
-            htmlspecialchars((string) ($settings['mailbox_destination'] ?? '')) . '.</p></div>';
+            htmlspecialchars((string) ($settings['mailbox_destination'] ?? '')) . '.</p>' .
+            notify_signature_block() . '</div>';
         $alt = "Your request is in\n\n" . $request['invitee_name'] . ",\n\nWe received your request for:\n" .
             $type['name'] . ' · ' . $when . ' (' . $type['duration_min'] . ' min).\n' .
             'The organiser will confirm by sending the calendar invitation.';
@@ -249,12 +281,13 @@ if (!function_exists('notify_send_email')) {
                 $html .= '<p><strong>' . htmlspecialchars($label) . ':</strong> ' . nl2br(htmlspecialchars($answer)) . '</p>';
             }
         }
-        $loc = notify_meeting_location($request, $type);
+        $loc = notify_meeting_location($request, $type, $settings);
         if ($loc !== null) {
             $html .= '<p><strong>Location / meeting link:</strong> ' . htmlspecialchars($loc) . '</p>';
         }
         $html .= '<p>Import the attached <strong>eratotime-meeting.ics</strong> into the Baïkal calendar (Thunderbird) ' .
-            'to create the event pre-filled — the meeting link is already in it. Then mark the request fulfilled in the admin panel.</p></div>';
+            'to create the event pre-filled — the meeting link is already in it. Then mark the request fulfilled in the admin panel.</p>' .
+            notify_signature_block() . '</div>';
 
         $alt = "New booking request\n\n" . $type['name'] . ' · ' . $when . "\nInvitee: " . $request['invitee_name'] .
             ' <' . $request['invitee_email'] . ">\n" .

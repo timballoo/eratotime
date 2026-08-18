@@ -396,7 +396,8 @@ if (!function_exists('admin_session_start')) {
         $pdo->prepare(
             "UPDATE global_settings SET organizer_bio = ?, organizer_photo_path = ?, global_daily_cap = ?,
                 global_weekly_cap = ?, whatsapp_enabled = ?, whatsapp_destination_number = ?,
-                organizer_timezone = ?, request_hold_hours = ?, request_log_retention_days = ?
+                organizer_timezone = ?, request_hold_hours = ?, request_log_retention_days = ?,
+                meet_link = ?
              WHERE tenant_id = ?"
         )->execute([
             trim((string) ($data['organizer_bio'] ?? '')),
@@ -408,6 +409,7 @@ if (!function_exists('admin_session_start')) {
             (string) ($data['organizer_timezone'] ?? 'Europe/London'),
             max(1, (int) ($data['request_hold_hours'] ?? 24)),
             max(7, (int) ($data['request_log_retention_days'] ?? 30)),
+            trim((string) ($data['meet_link'] ?? '')) === '' ? null : trim((string) $data['meet_link']),
             $tenantId,
         ]);
     }
