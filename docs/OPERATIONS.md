@@ -8,46 +8,49 @@ day-to-day runbook.
 
 - `domains/meertec.ltd/public_html/` — the **live doc root** for `www.meertec.ltd`.
   - `index.php`, `methodology.php`, … — the Meertec business site (its own repo).
+- `domains/meertec.ltd/public_html/book/` — **Eratotime's doc root**; the
+  Hostinger-managed subdomain `book.meertec.ltd` maps here. CI deploys here and
+  rsync `P`-protects `.env`, `config.php`, `uploads/` and `baikal/` (see
+  `.rsyncignore`). Because this lives inside the shared `meertec.ltd` doc root,
+  a business-site deploy could delete it — the nightly backup covers it.
   - `baikal/` — the CalDAV server (calendar of record, `stephen@meertec.ltd`).
-  - `eratotime/` → **symlink** to the Eratotime doc root (keeps the old
-    `www.meertec.ltd/eratotime` URL working; a doc-root wipe only removes the
-    link, never the app).
-- `domains/book.meertec.ltd/public_html/` — **Eratotime's own doc root**
-  (`https://book.meertec.ltd`). This is OUTSIDE the shared doc root, so the
-  business site's deploys / File Manager operations on `meertec.ltd` cannot
-  touch it. CI deploys here; `.env`, `config.php`, `uploads/` live here and are
-  protected from rsync `--delete`.
 - `~/backups/` — the off-box backup staging area (pulled nightly by CI).
 - `~/eratotime-keys/` — sodium encryption key (outside the web root).
 - `~/eratotime-runtime/` — rate-limit file cache.
+- `domains/book.meertec.ltd/public_html/` — **legacy** Eratotime/Baïkal doc root
+  (pre-2026-08-18 layout). Superseded by `meertec.ltd/public_html/book/`; the
+  remaining `config.php`/`.env` there are inert copies — do not edit them.
 
 ## Deploy
 
 - **Every push to `main`** → GitHub Actions `deploy.yml`: PHP test suite
   (MySQL 8 service) → `composer install --no-dev` → `rsync --delete` to
-  `domains/book.meertec.ltd/public_html/` → `php bin/migrate.php` →
+  `domains/meertec.ltd/public_html/book/` → `php bin/migrate.php` →
   smoke-check `https://book.meertec.ltd/…`.
-- `.rsyncignore` — `P` (protect) rules mean `.env`, `config.php` and `uploads/`
-  are **never transferred or deleted** by CI. (rsync deletes excluded files by
-  default — that's why they must be `P`, not `-`.)
+- `.rsyncignore` — `P` (protect) rules mean `.env`, `config.php`, `uploads/`
+  and `baikal/` are **never transferred or deleted** by CI. (rsync deletes
+  excluded files by default — that's why they must be `P`, not `-`.)
 - Manual redeploy: GitHub → Actions → "Deploy Eratotime via Rsync" →
   **Run workflow** (workflow_dispatch).
 - `config.php` is server-only: if it's ever missing,
   `cp config-sample.php config.php` (CI never removes it).
 
-## Secrets (server `.env` at `domains/book.meertec.ltd/public_html/.env`)
+## Secrets (server `.env` at `domains/meertec.ltd/public_html/book/.env`)
 
-`ERATO_DB_*` (production DB), `ERATO_CSRF_KEY` + `ERATO_ALTCHA_HMAC_KEY`
-(generate via `php bin/generate_keys.php`), `ERATO_SMTP_*`, `ERATO_CALDAV_*`.
+`ERATO_DB_*` (production DB `u835116879_meertec_erato`), `ERATO_CSRF_KEY` +
+`ERATO_ALTCHA_HMAC_KEY` (generate via `php bin/generate_keys.php`),
+`ERATO_SMTP_*`, `ERATO_CALDAV_*`.
 `config.php` needs the admin passphrase hash: `php -r "echo password_hash('…', PASSWORD_DEFAULT);"` → paste into `'password_hash' => '…'`.
 
 ## Baïkal
 
-- Lives at `domains/book.meertec.ltd/public_html/baikal` (OUTSIDE the shared
-  `meertec.ltd` doc root — this is the durable fix for the recurring wipes).
-  Eratotime CI protects `baikal/` (`P baikal/` in `.rsyncignore`), so deploys
-  never delete it. The server `.env` `ERATO_CALDAV_URL` points here:
+- Lives at `domains/meertec.ltd/public_html/book/baikal` (moved from the old
+  `book.meertec.ltd/public_html/baikal` on 2026-08-18 when the subdomain doc
+  root moved). Eratotime CI protects it (`P baikal/` in `.rsyncignore`), so
+  deploys never delete it. The server `.env` `ERATO_CALDAV_URL` points here:
   `https://book.meertec.ltd/baikal/html/dav.php/calendars/stephen@meertec.ltd/default/`.
+  - `config/baikal.yaml` holds an **absolute `sqlite_file` path** — if Baïkal
+    is ever moved, update that path to match.
 - **Restore from backup (preferred if data exists):** the nightly backup
   artifact contains `baikal/config/` and `baikal/Specific/` (Baïkal's users,
   calendar, SQLite DB, settings). Restore = redeploy vanilla Baïkal, then copy
@@ -76,8 +79,12 @@ day-to-day runbook.
 decides what runs when (configured in the admin panel → **Cron** tab):
 
 ```
-*/5 * * * * /usr/bin/php /home/u835116879/domains/book.meertec.ltd/public_html/cron_dispatcher.php
+*/5 * * * * /usr/bin/php /home/u835116879/domains/meertec.ltd/public_html/book/cron_dispatcher.php
 ```
+
+> **Check this entry** — after the 2026-08-18 doc-root move it must point at
+> `meertec.ltd/public_html/book/cron_dispatcher.php` (the old
+> `book.meertec.ltd/public_html` path no longer exists).
 
 The seeded jobs: `sync_calendars` (10 min), `retry_notifications` (5 min),
 `cleanup` (daily). Each job tracks `last_run_at`, `last_status`,
@@ -88,8 +95,9 @@ wanted): `GET https://book.meertec.ltd/cron_dispatcher.php?key=YOUR_CRON_SECRET`
 
 ## Structural note
 
-Eratotime is now on its **own subdomain doc root** (`book.meertec.ltd`), so a
-wipe of the shared `meertec.ltd` doc root cannot delete it. Baïkal remains in
-the shared root; its data is covered by the nightly backup. If Baïkal ever
-moves too, update `ERATO_CALDAV_URL` in the server `.env` and re-run
-`bin/setup_caldav.php`.
+Eratotime + Baïkal live under `domains/meertec.ltd/public_html/book/` (the
+subdomain `book.meertec.ltd` doc root), so `www.meertec.ltd` shares the root
+but the subdomain keeps its own routing. The `book.meertec.ltd` files can be
+hit by a wipe of the shared `meertec.ltd` doc root — the nightly off-box
+backup is the safety net. If Baïkal ever moves again, update the absolute
+`sqlite_file` in its `config/baikal.yaml` and re-run `bin/setup_caldav.php`.

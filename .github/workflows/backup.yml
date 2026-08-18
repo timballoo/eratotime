@@ -35,7 +35,7 @@ jobs:
         run: |
           ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
             ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }} \
-            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/book.meertec.ltd/public_html && php bin/backup.php'
+            'cd /home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/book && php bin/backup.php'
 
       - name: Pull backups down to the runner
         run: |
@@ -45,9 +45,9 @@ jobs:
           # Baïkal's data lives in its config/ + Specific/ dirs (settings, users,
           # SQLite DB, calendar events) — rsync them directly.
           rsync -az --ignore-missing-args -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
-            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/baikal/config/ backup/baikal/config/
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/book/baikal/config/ backup/baikal/config/
           rsync -az --ignore-missing-args -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
-            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/baikal/Specific/ backup/baikal/Specific/
+            ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/domains/meertec.ltd/public_html/book/baikal/Specific/ backup/baikal/Specific/
 
       - name: Package and upload artifact
         run: tar czf backup/eratotime-backup.tar.gz -C backup eratotime baikal
