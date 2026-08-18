@@ -70,13 +70,14 @@ function esc(s) {
 function render() {
     APP.innerHTML = `
       <div class="booking-card">
-        <h1 class="booking-heading">Book a conversation</h1>
-
-        ${CONFIG.types.length > 1 ? `
-        <div class="type-toggle" role="group" aria-label="Meeting length">
-          ${CONFIG.types.map(t => `
-            <button type="button" class="type-toggle-btn${t.slug === CONFIG.type_slug ? ' is-active' : ''}" data-type="${esc(t.slug)}"${t.slug === CONFIG.type_slug ? ' aria-pressed="true"' : ''} title="${esc(t.name)}" aria-label="${esc(t.name)}">${t.duration_min} min</button>`).join('')}
-        </div>` : ''}
+        <div class="heading-row">
+          <h1 class="booking-heading">Book a conversation</h1>
+          ${CONFIG.types.length > 1 ? `
+          <div class="type-toggle" role="group" aria-label="Meeting length">
+            ${CONFIG.types.map(t => `
+              <button type="button" class="type-toggle-btn${t.slug === CONFIG.type_slug ? ' is-active' : ''}" data-type="${esc(t.slug)}"${t.slug === CONFIG.type_slug ? ' aria-pressed="true"' : ''} title="${esc(t.name)}" aria-label="${esc(t.name)}">${t.duration_min} min</button>`).join('')}
+          </div>` : ''}
+        </div>
 
         ${CONFIG.organizer.photo || CONFIG.organizer.bio ? `
         <div class="organizer">
@@ -86,11 +87,6 @@ function render() {
 
         <p class="meeting-type-desc" id="type-desc"${CONFIG.type.description ? '' : ' hidden'}>${esc(CONFIG.type.description || '')}</p>
         <p class="meeting-type-location" id="meeting-location">${locationLineHtml()}</p>
-
-        <div class="tz-row">
-          <label class="tz-label" for="tz-select">Your timezone</label>
-          <select id="tz-select" class="tz-select"></select>
-        </div>
 
         <div id="status" class="status" role="status"></div>
 
@@ -104,9 +100,13 @@ function render() {
             <div class="field field-video">
               <label class="field-label">How would you like to connect?</label>
               <div class="connect-toggle" role="radiogroup" aria-label="Meeting format">
-                <label class="connect-opt"><input type="radio" name="connect" value="video" checked> <span id="connect-video-label">Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}</span></label>
-                <label class="connect-opt"><input type="radio" name="connect" value="audio"> Audio only</label>
+                <label class="connect-opt"><input type="radio" name="connect" value="audio" checked> Audio only</label>
+                <label class="connect-opt"><input type="radio" name="connect" value="video"> <span id="connect-video-label">Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}</span></label>
               </div>
+            </div>
+            <div class="tz-row">
+              <label class="tz-label" for="tz-select">Your timezone</label>
+              <select id="tz-select" class="tz-select"></select>
             </div>
             <div id="slots-wrap"></div>
           </div>
@@ -212,9 +212,9 @@ function locationHref(raw) {
 
 function videoWanted() {
     const sel = document.querySelector('input[name="connect"]:checked');
-    // The video radio defaults to checked; before it's in the DOM (during
-    // initial template evaluation) treat the video option as selected.
-    return !sel || sel.value === 'video';
+    // Audio only is the default; before the radios are in the DOM (during
+    // initial template evaluation) treat the audio option as selected.
+    return sel ? sel.value === 'video' : false;
 }
 
 // Location line shown near the meeting type: when a video link is configured
@@ -370,7 +370,7 @@ async function selectDate(date, autoPick = false) {
                 ? `<li><button type="button" class="slot-btn" data-iso="${esc(g.utc)}" data-org="${esc(g.time)}">${label}</button></li>`
                 : `<li><button type="button" class="slot-btn is-closed" disabled tabindex="-1" aria-disabled="true" title="Unavailable">${label}</button></li>`;
         });
-        wrap.innerHTML = `<p class="slot-date-note">${esc(localDay)} — shown in your timezone (${esc(state.timezone)})</p><ul class="slot-list">${items.join('')}</ul>`;
+        wrap.innerHTML = `<p class="slot-date-note">${esc(localDay)}</p><ul class="slot-list">${items.join('')}</ul>`;
         wrap.querySelectorAll('.slot-btn:not(.is-closed)').forEach(btn => {
             btn.addEventListener('click', () => {
                 state.selectedUtcSlot = btn.dataset.iso;

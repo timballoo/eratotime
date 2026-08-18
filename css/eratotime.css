@@ -87,6 +87,11 @@ html { scroll-behavior: smooth; }
   font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.1;
   margin: 0 0 10px; letter-spacing: -0.01em;
 }
+.heading-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.heading-row .booking-heading { margin: 0; }
 .booking-lede { color: var(--paper-text-lo); margin: 0 0 24px; font-size: 1rem; }
 .booking-step {
   font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em;
@@ -123,7 +128,7 @@ html { scroll-behavior: smooth; }
 /* ---------- Meeting-length toggle ---------- */
 .type-toggle {
   display: inline-flex; border: 1px solid var(--paper-line); border-radius: var(--radius);
-  padding: 3px; gap: 3px; margin: 16px 0 4px; flex-wrap: wrap;
+  padding: 3px; gap: 3px; flex-wrap: wrap;
 }
 .type-toggle-btn {
   font: inherit; font-size: 0.9rem; color: var(--paper-text-hi); text-align: center;
