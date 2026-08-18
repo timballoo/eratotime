@@ -16,6 +16,13 @@ $config = require __DIR__ . '/config.php';
 admin_session_start();
 $loggedIn = admin_is_logged_in();
 $csrf = $loggedIn ? admin_csrf_token() : '';
+
+// Version static assets by file mtime (Hostinger CDN caches them for 7 days).
+$assetVer = max(
+    (int) @filemtime(__DIR__ . '/css/eratotime.css'),
+    (int) @filemtime(__DIR__ . '/css/admin.css'),
+    (int) @filemtime(__DIR__ . '/js/admin.js')
+);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -24,8 +31,8 @@ $csrf = $loggedIn ? admin_csrf_token() : '';
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Eratotime Admin — Meertec</title>
-<link rel="stylesheet" href="css/eratotime.css">
-<link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/eratotime.css?v=<?= $assetVer ?>">
+<link rel="stylesheet" href="css/admin.css?v=<?= $assetVer ?>">
 </head>
 <body class="booking-body admin-body">
 <header class="masthead">
@@ -79,11 +86,7 @@ $csrf = $loggedIn ? admin_csrf_token() : '';
     </div>
 </footer>
 
-<script src="js/embed-resize.js"></script>
-<?php if ($loggedIn): ?>
-<script type="module" src="js/admin.js"></script>
-<?php else: ?>
-<script type="module" src="js/admin.js"></script>
-<?php endif; ?>
+<script src="js/embed-resize.js?v=<?= $assetVer ?>"></script>
+<script type="module" src="js/admin.js?v=<?= $assetVer ?>"></script>
 </body>
 </html>

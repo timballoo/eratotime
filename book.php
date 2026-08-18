@@ -35,6 +35,15 @@ if ($tenantSlug === '' || $typeSlug === '') {
     }
 }
 
+// Static assets are served through Hostinger's CDN with a 7-day max-age, so
+// version the URLs by file mtime: a deploy changes the mtimes, which busts the
+// CDN + browser cache without needing manual purges.
+$assetVer = max(
+    (int) @filemtime(__DIR__ . '/js/booking.js'),
+    (int) @filemtime(__DIR__ . '/js/embed-resize.js'),
+    (int) @filemtime(__DIR__ . '/css/eratotime.css')
+);
+
 http_response_code(404);
 $title = 'Page not found';
 $payload = null;
@@ -64,7 +73,7 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
 <meta name="theme-color" content="#0F1B2B">
 <title><?= htmlspecialchars($title) ?></title>
 <meta name="description" content="Request a time to talk with Dr Stephen D. Jones.">
-<link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>css/eratotime.css">
+<link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>css/eratotime.css?v=<?= $assetVer ?>">
 </head>
 <body class="booking-body">
 <header class="masthead">
@@ -100,12 +109,12 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
     </div>
 </footer>
 
-<script src="<?= htmlspecialchars($basePath) ?>js/embed-resize.js"></script>
+<script src="<?= htmlspecialchars($basePath) ?>js/embed-resize.js?v=<?= $assetVer ?>"></script>
 <?php if ($payload !== null): ?>
 <?php if ($payload['altcha_enabled']): ?>
 <script src="https://cdn.jsdelivr.net/npm/altcha@0/altcha.min.js" defer></script>
 <?php endif; ?>
-<script type="module" src="<?= htmlspecialchars($basePath) ?>js/booking.js"></script>
+<script type="module" src="<?= htmlspecialchars($basePath) ?>js/booking.js?v=<?= $assetVer ?>"></script>
 <?php endif; ?>
 </body>
 </html>
