@@ -73,6 +73,7 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
 <meta name="theme-color" content="#0F1B2B">
 <title><?= htmlspecialchars($title) ?></title>
 <meta name="description" content="Request a time to talk with Dr Stephen D. Jones.">
+<link rel="icon" type="image/png" href="https://www.meertec.ltd/assets/meertec-logo-disk.png">
 <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>css/eratotime.css?v=<?= $assetVer ?>">
 </head>
 <body class="booking-body">

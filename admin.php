@@ -31,6 +31,7 @@ $assetVer = max(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Eratotime Admin — Meertec</title>
+<link rel="icon" type="image/png" href="https://www.meertec.ltd/assets/meertec-logo-disk.png">
 <link rel="stylesheet" href="css/eratotime.css?v=<?= $assetVer ?>">
 <link rel="stylesheet" href="css/admin.css?v=<?= $assetVer ?>">
 </head>
