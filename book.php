@@ -36,8 +36,7 @@ if ($tenantSlug === '' || $typeSlug === '') {
 }
 
 http_response_code(404);
-$title = 'Page not found — Meertec';
-$tenantName = 'Meertec';
+$title = 'Page not found';
 $payload = null;
 
 if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $config['db']['name'] !== '') {
@@ -50,51 +49,10 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
     );
     $pdo = new PDO($dsn, $config['db']['user'], $config['db']['pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
-    $tenant = tenant_load($pdo, $tenantSlug);
-    if ($tenant !== null) {
-        $tenantId = (int) $tenant['tenant']['id'];
-        $settings = $tenant['settings'];
-        $tenantName = $tenant['tenant']['display_name'] ?? 'Meertec';
-
-        $stmt = $pdo->prepare(
-            'SELECT mt.* FROM meeting_types mt WHERE mt.tenant_id = ? AND mt.slug = ? AND mt.active = 1 LIMIT 1'
-        );
-        $stmt->execute([$tenantId, $typeSlug]);
-        $type = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($type !== false) {
-            http_response_code(200);
-            $title = $type['name'] . ' — Meertec';
-
-            $qStmt = $pdo->prepare('SELECT label, type, required, sort_order FROM meeting_type_questions WHERE meeting_type_id = ? ORDER BY sort_order');
-            $qStmt->execute([$type['id']]);
-            $questions = $qStmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $tStmt = $pdo->prepare('SELECT slug, name, duration_min, sort_order FROM meeting_types WHERE tenant_id = ? AND active = 1 ORDER BY sort_order');
-            $tStmt->execute([$tenantId]);
-            $types = $tStmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $payload = [
-                'base' => $basePath,
-                'tenant_slug' => $tenantSlug,
-                'type_slug' => $typeSlug,
-                'type' => [
-                    'name' => $type['name'],
-                    'description' => $type['description'],
-                    'duration_min' => (int) $type['duration_min'],
-                    'location_details' => $type['location_details'],
-                    'video_link' => $type['video_link'],
-                ],
-                'organizer' => [
-                    'name' => $tenantName,
-                    'bio' => $settings['organizer_bio'] ?? null,
-                    'photo' => $settings['organizer_photo_path'] ?? null,
-                ],
-                'questions' => $questions,
-                'types' => $types,
-                'csrf' => security_csrf_issue((string) ($config['csrf_secret'] ?? '')),
-                'altcha_enabled' => altcha_enabled($config),
-            ];
-        }
+    $payload = booking_config_build($pdo, $config, $tenantSlug, $typeSlug, $basePath);
+    if ($payload !== null) {
+        http_response_code(200);
+        $title = $payload['type']['name'];
     }
 }
 ?>
@@ -137,7 +95,7 @@ if ($tenantSlug !== '' && $typeSlug !== '' && isset($config['db']['name']) && $c
 
 <footer class="site-footer">
     <div class="section-inner footer-inner">
-        <p>&copy; <span id="year"><?= date('Y') ?></span> Meertec. Dr Stephen D. Jones.</p>
+        <p>&copy; <span id="year"><?= date('Y') ?></span> Dr Stephen D. Jones.</p>
         <p>Oxford, UK</p>
     </div>
 </footer>

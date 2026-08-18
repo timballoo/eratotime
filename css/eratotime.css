@@ -70,7 +70,7 @@ html { scroll-behavior: smooth; }
 
 /* ---------- Layout ---------- */
 .booking-main { padding: 56px 0 80px; }
-.booking-wrap { max-width: 760px; }
+.booking-wrap { max-width: 920px; }
 .booking-card {
   background: #fff;
   border: 1px solid var(--paper-line);
@@ -94,6 +94,16 @@ html { scroll-behavior: smooth; }
 }
 .booking-step:first-of-type { margin-top: 8px; }
 
+/* Two-column picker: calendar (left) + times (right); stacks on narrow screens. */
+.booking-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start;
+  margin-top: 8px;
+}
+.booking-grid .booking-step { margin-top: 4px; }
+@media (max-width: 720px) {
+  .booking-grid { grid-template-columns: 1fr; gap: 8px; }
+}
+
 /* ---------- Organizer ---------- */
 .organizer {
   display: flex; gap: 20px; align-items: flex-start;
@@ -106,12 +116,6 @@ html { scroll-behavior: smooth; }
 .organizer-bio { color: var(--paper-text-lo); font-size: 0.95rem; margin: 0; }
 
 /* ---------- Meeting type ---------- */
-.meeting-type { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.meeting-type-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; margin: 0; }
-.meeting-type-duration {
-  font-family: var(--font-mono); font-size: 0.78rem; color: var(--verdigris);
-  border: 1px solid var(--verdigris); border-radius: var(--radius); padding: 3px 10px;
-}
 .meeting-type-desc { color: var(--paper-text-lo); font-size: 0.95rem; margin: 8px 0 0; }
 .meeting-type-location { margin: 10px 0 0; font-size: 0.95rem; }
 .meeting-type-location a { word-break: break-all; }
@@ -119,15 +123,22 @@ html { scroll-behavior: smooth; }
 /* ---------- Meeting-length toggle ---------- */
 .type-toggle {
   display: inline-flex; border: 1px solid var(--paper-line); border-radius: var(--radius);
-  padding: 3px; gap: 3px; margin: 16px 0 4px;
+  padding: 3px; gap: 3px; margin: 16px 0 4px; flex-wrap: wrap;
 }
 .type-toggle-btn {
-  font: inherit; font-size: 0.88rem; color: var(--paper-text-hi);
-  text-decoration: none; padding: 7px 16px; border-radius: calc(var(--radius) - 2px);
+  font: inherit; color: var(--paper-text-hi); text-align: center;
+  border: 0; background: none; cursor: pointer;
+  padding: 7px 16px; border-radius: calc(var(--radius) - 2px);
   transition: background 0.15s ease, color 0.15s ease;
 }
 .type-toggle-btn:hover, .type-toggle-btn:focus-visible { background: var(--paper-alt); }
+.type-toggle-btn:disabled { cursor: default; opacity: 0.7; }
 .type-toggle-btn.is-active { background: var(--ink); color: var(--ink-text-hi); }
+.type-toggle-btn .mt-name { display: block; font-size: 0.88rem; }
+.type-toggle-btn .mt-dur {
+  display: block; font-family: var(--font-mono); font-size: 0.7rem;
+  letter-spacing: 0.04em; opacity: 0.65; margin-top: 1px;
+}
 
 /* ---------- Timezone ---------- */
 .tz-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }

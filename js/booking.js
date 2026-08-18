@@ -70,14 +70,15 @@ function esc(s) {
 function render() {
     APP.innerHTML = `
       <div class="booking-card">
-        <p class="eyebrow">Meertec</p>
         <h1 class="booking-heading">Book a conversation</h1>
 
         ${CONFIG.types.length > 1 ? `
         <div class="type-toggle" role="group" aria-label="Meeting length">
-          ${CONFIG.types.map(t =>
-            `<a class="type-toggle-btn${t.slug === CONFIG.type_slug ? ' is-active' : ''}" href="${esc(CONFIG.base)}t/${esc(CONFIG.tenant_slug)}/book/${esc(t.slug)}">${esc(t.name)}</a>`
-          ).join('')}
+          ${CONFIG.types.map(t => `
+            <button type="button" class="type-toggle-btn${t.slug === CONFIG.type_slug ? ' is-active' : ''}" data-type="${esc(t.slug)}"${t.slug === CONFIG.type_slug ? ' aria-pressed="true"' : ''}>
+              <span class="mt-name">${esc(t.name)}</span>
+              <span class="mt-dur">${t.duration_min} min</span>
+            </button>`).join('')}
         </div>` : ''}
 
         ${CONFIG.organizer.photo || CONFIG.organizer.bio ? `
@@ -86,16 +87,13 @@ function render() {
           ${CONFIG.organizer.bio ? `<p class="organizer-bio">${esc(CONFIG.organizer.bio)}</p>` : ''}
         </div>` : ''}
 
-        <div class="meeting-type">
-          <h2 class="meeting-type-name">${esc(CONFIG.type.name)}</h2>
-          <span class="meeting-type-duration">${CONFIG.type.duration_min} min</span>
-        </div>
-        ${CONFIG.type.description ? `<p class="meeting-type-desc">${esc(CONFIG.type.description)}</p>` : ''}
+        <p class="meeting-type-desc" id="type-desc"${CONFIG.type.description ? '' : ' hidden'}>${esc(CONFIG.type.description || '')}</p>
         <p class="meeting-type-location" id="meeting-location">${locationLineHtml()}</p>
+
         <div class="field field-video">
           <label class="field-label">How would you like to connect?</label>
           <div class="connect-toggle" role="radiogroup" aria-label="Meeting format">
-            <label class="connect-opt"><input type="radio" name="connect" value="video" checked> Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}</label>
+            <label class="connect-opt"><input type="radio" name="connect" value="video" checked> <span id="connect-video-label">Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}</span></label>
             <label class="connect-opt"><input type="radio" name="connect" value="audio"> Audio only</label>
           </div>
         </div>
@@ -107,11 +105,16 @@ function render() {
 
         <div id="status" class="status" role="status"></div>
 
-        <p class="booking-step">1 · Pick a day</p>
-        <div id="month-wrap"></div>
-
-        <p class="booking-step">2 · Pick a time</p>
-        <div id="slots-wrap"></div>
+        <div class="booking-grid">
+          <div class="pick-col">
+            <p class="booking-step">1 · Pick a day</p>
+            <div id="month-wrap"></div>
+          </div>
+          <div class="pick-col">
+            <p class="booking-step">2 · Pick a time</p>
+            <div id="slots-wrap"></div>
+          </div>
+        </div>
 
         <p class="booking-step">3 · Your details</p>
         <form id="booking-form" class="booking-form" novalidate>
@@ -123,7 +126,7 @@ function render() {
             <label class="field-label" for="f-email">Email <span class="req">*</span></label>
             <input class="field-input" id="f-email" name="email" type="email" autocomplete="email" required>
           </div>
-          ${CONFIG.questions.map((q, i) => questionHtml(q, i)).join('')}
+          <div id="questions-wrap">${CONFIG.questions.map((q, i) => questionHtml(q, i)).join('')}</div>
           <div class="field">
             <label class="field-label">Guests <span class="field-hint">optional — additional attendees</span></label>
             <div id="guest-list"></div>
@@ -141,6 +144,7 @@ function render() {
 
     populateTzSelect();
     document.getElementById('tz-select').addEventListener('change', e => { state.timezone = e.target.value; refreshSlots(); });
+    document.querySelectorAll('.type-toggle-btn').forEach(btn => btn.addEventListener('click', () => switchType(btn.dataset.type)));
     document.querySelectorAll('input[name="connect"]').forEach(r => r.addEventListener('change', () => {
         const loc = document.getElementById('meeting-location');
         if (loc) loc.innerHTML = locationLineHtml();
@@ -150,6 +154,59 @@ function render() {
     document.getElementById('booking-form').addEventListener('submit', onSubmit);
     setupMonthNav();
     refreshMonth();
+}
+
+// Switch meeting type without a page reload: fetch the new type's config, swap
+// the type-specific bits (title, description, location, video label, questions,
+// CSRF) and re-fetch availability in place.
+async function switchType(slug) {
+    if (slug === CONFIG.type_slug) return;
+    document.querySelectorAll('.type-toggle-btn').forEach(b => b.disabled = true);
+    setStatus('Loading…');
+    try {
+        const qs = new URLSearchParams({ tenant: CONFIG.tenant_slug, type: slug });
+        const res = await fetch(`${CONFIG.base}api/type.php?${qs}`);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || !body.ok) throw new Error(body.error || `Request failed (${res.status})`);
+
+        CONFIG.type_slug = body.type_slug;
+        CONFIG.type = body.type;
+        CONFIG.questions = Array.isArray(body.questions) ? body.questions : [];
+        CONFIG.csrf = body.csrf;
+        CONFIG.altcha_enabled = !!body.altcha_enabled;
+
+        document.title = CONFIG.type.name;
+        history.replaceState(null, '', `${CONFIG.base}t/${CONFIG.tenant_slug}/book/${slug}`);
+
+        const desc = document.getElementById('type-desc');
+        if (desc) {
+            desc.textContent = CONFIG.type.description || '';
+            desc.hidden = !CONFIG.type.description;
+        }
+        const loc = document.getElementById('meeting-location');
+        if (loc) loc.innerHTML = locationLineHtml();
+        const vlabel = document.getElementById('connect-video-label');
+        if (vlabel) vlabel.textContent = `Video call${CONFIG.type.video_link ? ' — Google Meet' : ''}`;
+        const qwrap = document.getElementById('questions-wrap');
+        if (qwrap) qwrap.innerHTML = CONFIG.questions.map((q, i) => questionHtml(q, i)).join('');
+
+        document.querySelectorAll('.type-toggle-btn').forEach(b => {
+            const active = b.dataset.type === slug;
+            b.classList.toggle('is-active', active);
+            if (active) b.setAttribute('aria-pressed', 'true'); else b.removeAttribute('aria-pressed');
+        });
+
+        state.selectedDate = null;
+        state.selectedUtcSlot = null;
+        state.selectedOrgSlot = null;
+        state.monthOffset = 0;
+        renderSummary();
+        refreshMonth();
+    } catch (e) {
+        setStatus(e.message, 'error');
+    } finally {
+        document.querySelectorAll('.type-toggle-btn').forEach(b => b.disabled = false);
+    }
 }
 
 function locationHref(raw) {
