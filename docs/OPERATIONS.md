@@ -41,6 +41,58 @@ day-to-day runbook.
 `ERATO_ALTCHA_HMAC_KEY` (generate via `php bin/generate_keys.php`),
 `ERATO_SMTP_*`, `ERATO_CALDAV_*`.
 `config.php` needs the admin passphrase hash: `php -r "echo password_hash('…', PASSWORD_DEFAULT);"` → paste into `'password_hash' => '…'`.
+`ERATO_GOOGLE_SERVICE_ACCOUNT_PATH` and `ERATO_GOOGLE_MEET_CALENDAR_ID` (see **Google Meet** below).
+
+## Admin password reset
+
+If the admin password is forgotten, use the **secret reset URL** stored in the
+`tenants` table. The reset secret is a 64-character hex token — one-time use,
+regenerated after each successful reset.
+
+### Generate a reset link
+
+SSH into the server and run:
+
+```bash
+php -r "echo bin2hex(random_bytes(32));"
+```
+
+Copy the output (a 64-char hex string) and store it:
+
+```bash
+php -r "
+\$pdo = new PDO('mysql:host=127.0.0.1;dbname=u835116879_meertec_erato', 'u835116879_admin', 'YOUR_DB_PASS');
+\$pdo->exec(\"UPDATE tenants SET reset_secret = '"$(php -r "echo bin2hex(random_bytes(32));")"' WHERE slug = 'meertec'\");
+echo 'Done';
+"
+```
+
+Or more simply, use any MySQL client:
+
+```sql
+UPDATE tenants SET reset_secret = '<64-char-hex-token>' WHERE slug = 'meertec';
+```
+
+Then share this URL with the person who needs to reset:
+
+```
+https://book.meertec.ltd/admin.php?reset=<64-char-hex-token>
+```
+
+### What happens
+
+1. The link shows a password-change form (new password + confirm).
+2. On submit, the new password is hashed and written to `config.php`.
+3. The reset token is regenerated — the old link immediately stops working.
+4. The person is redirected to the login page with the new password.
+
+### Notes
+
+- The reset link works only once — each use generates a new token.
+- The link does not expire (there's no timestamp check), but it's invalidated
+  after use. If you want to revoke it without using it, just set
+  `reset_secret = NULL` in the `tenants` row.
+- The reset form does not require the old password — that's the whole point.
 
 ## Baïkal
 
@@ -63,7 +115,62 @@ day-to-day runbook.
   invites from `stephen@meertec.ltd`. Any CalDAV client (Thunderbird) must
   point at the `book.meertec.ltd/baikal` URL above.
 
-## Backup / restore
+## Google Meet (dynamic link generation, optional)
+
+When enabled, a unique Google Meet link is generated per booking via the
+Calendar API. The Service Account authenticates with its own credentials —
+no impersonation or domain-wide delegation needed — and the Gmail address
+(`meertec.ltd@gmail.com`) never appears in any email or output sent to
+invitees.
+
+### Prerequisites
+- A Google account with Google Calendar enabled (`meertec.ltd@gmail.com`).
+- The **"Eratotime Meet Rooms"** calendar created in that account (or any
+  existing calendar you want to reuse).
+
+### Fresh install (new service account)
+
+1. **Google Cloud Console → IAM & Admin → Service Accounts**
+   - Create service account (e.g. `eratotime-meet@…iam.gserviceaccount.com`).
+   - Create a JSON key → download it.
+   - Place it at `/home/u835116879/eratotime-keys/service-account.json` (outside
+     the web root — never put it in `book/`). The CI rsync ignores
+     `eratotime-keys/` and `.rsyncignore` does not need updating.
+
+2. **Share the calendar** with the service account email
+   (`eratotime-meet@…iam.gserviceaccount.com`) → grant **Make changes to
+   events** permission.
+
+3. **Get the calendar ID** — Google Calendar Settings → Integrate calendar
+   → copy the Calendar ID (looks like `abc123@group.calendar.google.com`).
+
+4. **Add secrets to server `.env`:**
+   ```
+   ERATO_GOOGLE_SERVICE_ACCOUNT_PATH=/home/u835116879/eratotime-keys/service-account.json
+   ERATO_GOOGLE_MEET_CALENDAR_ID=abc123@group.calendar.google.com
+   ```
+
+5. **Admin panel → Settings** → enable "Dynamic Meet links".
+
+### Rotate service account key
+
+1. Google Cloud Console → Service Accounts → Keys → Create new key (JSON).
+2. Replace `/home/u835116879/eratotime-keys/service-account.json`.
+3. No code changes needed — the path in `.env` is unchanged.
+
+### How it works
+
+- On each booking, `request_lib.php` calls `meet_create_link()` which
+  creates a temporary calendar event with `conferenceData.createRequest`
+  (type `hangoutsMeet`), then extracts the link from `getHangoutLink()`
+  or the `entryPoints[0].uri` fallback.
+- The link is stored on `request_log.meet_link` and used by the notification
+  system in preference to the static per-type `video_link`.
+- If `delete_meet_events` is enabled, the temp event is deleted after
+  extracting the link (the Meet link persists regardless).
+- On failure, the system falls back to the static `video_link` or
+  `global_settings.meet_link` — dynamic link generation is never required
+  for a booking to succeed.
 
 - **Nightly 02:00 UTC** `backup.yml` + manual dispatch: `bin/backup.php` dumps
   the Eratotime DB as gzipped SQL to `~/backups/eratotime/`; the workflow pulls

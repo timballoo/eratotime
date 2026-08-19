@@ -99,13 +99,20 @@ if (!function_exists('notify_send_email')) {
     }
 
     /**
-     * Resolve the meeting location: when the invitee chose a video call and the
-     * meeting type has a video link, the Google Meet link wins; otherwise the
-     * meeting type's default location/details applies.  Falls back to the global
-     * meet_link from settings when no per-type link is set.
+     * Resolve the meeting location: when a dynamic Meet link was generated for
+     * this request, it takes highest priority.  Otherwise, when the invitee
+     * chose a video call and the meeting type has a video link, the per-type
+     * link wins; otherwise the meeting type's default location/details applies.
+     * Falls back to the global meet_link from settings when no per-type link
+     * is set.
      */
     function notify_meeting_location(array $request, array $type, array $settings = []): ?string
     {
+        // Priority 1: dynamically generated Meet link stored on the request
+        if (!empty($request['meet_link'])) {
+            return (string) $request['meet_link'];
+        }
+        // Priority 2: per-type video_link (static fallback)
         if (!empty($request['video_call']) && !empty($type['video_link'])) {
             return (string) $type['video_link'];
         }
@@ -305,7 +312,8 @@ if (!function_exists('notify_send_email')) {
         $rows = $pdo->prepare(
             "SELECT o.id AS outbox_id, o.template, o.recipient, o.status, o.attempts, o.last_attempt_at, o.next_retry_at,
                     r.id AS request_id, r.invitee_name, r.invitee_email, r.invitee_timezone,
-                    r.guest_emails, r.custom_answers, r.video_call, r.requested_start_utc, r.requested_end_utc,
+                    r.guest_emails, r.custom_answers, r.video_call, r.meet_link,
+                    r.requested_start_utc, r.requested_end_utc,
                     mt.name AS type_name, mt.duration_min, mt.location_details, mt.video_link, mt.message_template,
                     g.organizer_timezone, g.mailbox_destination, g.whatsapp_destination_number
                FROM notification_outbox o
@@ -327,6 +335,7 @@ if (!function_exists('notify_send_email')) {
                 'guest_emails' => $row['guest_emails'],
                 'custom_answers' => $row['custom_answers'],
                 'video_call' => $row['video_call'],
+                'meet_link' => $row['meet_link'],
                 'requested_start_utc' => $row['requested_start_utc'],
                 'requested_end_utc' => $row['requested_end_utc'],
             ];

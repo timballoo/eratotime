@@ -93,6 +93,46 @@ if (loginForm) {
     });
 }
 
+// --- Password reset ----------------------------------------------------------
+
+const resetForm = document.getElementById('admin-reset-form');
+if (resetForm) {
+    resetForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const status = document.getElementById('reset-status');
+        const fd = new FormData(resetForm);
+        const password = fd.get('password');
+        const password2 = fd.get('password2');
+        if (password !== password2) {
+            status.className = 'status is-visible status-error';
+            status.textContent = 'Passwords do not match.';
+            return;
+        }
+        if (password.length < 8) {
+            status.className = 'status is-visible status-error';
+            status.textContent = 'Password must be at least 8 characters.';
+            return;
+        }
+        status.className = 'status is-visible status-info';
+        status.textContent = 'Resetting password…';
+        try {
+            const res = await fetch('api/admin/reset.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ secret: fd.get('secret'), password }),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || !d.ok) throw new Error(d.error || 'Reset failed');
+            status.className = 'status is-visible status-info';
+            status.textContent = 'Password updated. Redirecting…';
+            setTimeout(() => { location.href = 'admin.php'; }, 1500);
+        } catch (err) {
+            status.className = 'status is-visible status-error';
+            status.textContent = err.message;
+        }
+    });
+}
+
 // --- Dashboard ----------------------------------------------------------------
 
 async function renderDashboard(view) {
@@ -532,6 +572,8 @@ async function renderSettings(view) {
             <div class="field"><label class="field-label">WhatsApp enabled</label><input type="checkbox" name="whatsapp_enabled" ${s.whatsapp_enabled ? 'checked' : ''}></div>
             <div class="field"><label class="field-label">WhatsApp destination number</label><input class="field-input" name="whatsapp_destination_number" value="${esc(s.whatsapp_destination_number || '')}"></div>
             <div class="field"><label class="field-label">Default Google Meet link</label><input class="field-input" name="meet_link" value="${esc(s.meet_link || '')}" placeholder="https://meet.google.com/..."></div>
+            <div class="field"><label class="field-label">Dynamic Meet links</label><input type="checkbox" name="dynamic_meet_links" ${s.dynamic_meet_links ? 'checked' : ''}></div>
+            <div class="field"><label class="field-label">Delete temp Meet events</label><input type="checkbox" name="delete_meet_events" ${s.delete_meet_events ? 'checked' : ''}></div>
           </div>
           <button type="submit" class="btn btn-primary">Save</button>
           <div id="set-status" class="status"></div>
@@ -546,7 +588,8 @@ async function renderSettings(view) {
             global_weekly_cap: fd.get('global_weekly_cap'), whatsapp_enabled: fd.get('whatsapp_enabled') ? 1 : 0,
             whatsapp_destination_number: fd.get('whatsapp_destination_number'), organizer_timezone: fd.get('organizer_timezone'),
             request_hold_hours: Number(fd.get('request_hold_hours') || 24), request_log_retention_days: Number(fd.get('request_log_retention_days') || 30),
-            meet_link: fd.get('meet_link') };
+            meet_link: fd.get('meet_link'), dynamic_meet_links: fd.get('dynamic_meet_links') ? 1 : 0,
+            delete_meet_events: fd.get('delete_meet_events') ? 1 : 0 };
         status.className = 'status is-visible status-info';
         status.textContent = 'Saving…';
         try {

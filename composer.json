@@ -32,7 +32,8 @@
             "booking_lib.php",
             "cleanup_lib.php",
             "cron_lib.php",
-            "providers/caldav_provider.php"
+            "providers/caldav_provider.php",
+            "providers/meet_provider.php"
         ]
     },
     "autoload-dev": {

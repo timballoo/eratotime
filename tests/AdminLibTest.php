@@ -204,4 +204,64 @@ final class AdminLibTest extends TestCase
             rmdir($config['runtime_dir']);
         }
     }
+
+    // --- Password reset -------------------------------------------------------
+
+    public function testValidateResetSecretReturnsTenantIdWhenValid(): void
+    {
+        $pdo = $this->pdo();
+        $secret = bin2hex(random_bytes(32));
+        $pdo->prepare("UPDATE tenants SET reset_secret = ? WHERE slug = 'meertec'")->execute([$secret]);
+
+        $tenantId = admin_validate_reset_secret($pdo, $secret);
+        self::assertNotNull($tenantId);
+        self::assertSame($this->tenantId(), $tenantId);
+
+        // Cleanup
+        $pdo->prepare("UPDATE tenants SET reset_secret = NULL WHERE slug = 'meertec'")->execute();
+    }
+
+    public function testValidateResetSecretReturnsNullWhenInvalid(): void
+    {
+        $pdo = $this->pdo();
+        self::assertNull(admin_validate_reset_secret($pdo, 'nonexistent'));
+        self::assertNull(admin_validate_reset_secret($pdo, ''));
+    }
+
+    public function testResetPasswordUpdatesConfigAndRegeneratesSecret(): void
+    {
+        $pdo = $this->pdo();
+        $secret = bin2hex(random_bytes(32));
+        $pdo->prepare("UPDATE tenants SET reset_secret = ? WHERE slug = 'meertec'")->execute([$secret]);
+
+        // Create a temp config.php to simulate the real file.
+        $tmpConfig = tempnam(sys_get_temp_dir(), 'cfg_');
+        $oldHash = password_hash('old-password', PASSWORD_DEFAULT);
+        file_put_contents($tmpConfig, "<?php\nreturn ['admin' => ['password_hash' => '" . $oldHash . "']];\n");
+
+        $ok = admin_reset_password($pdo, $this->tenantId(), 'new-secure-password', $tmpConfig);
+        self::assertTrue($ok);
+
+        // Verify config.php was updated with a valid bcrypt hash.
+        $updated = include $tmpConfig;
+        self::assertNotSame($oldHash, $updated['admin']['password_hash']);
+        self::assertTrue(password_verify('new-secure-password', $updated['admin']['password_hash']));
+
+        // Verify the reset secret was regenerated (old one no longer valid).
+        $newSecret = $pdo->query("SELECT reset_secret FROM tenants WHERE id = {$this->tenantId()}")->fetchColumn();
+        self::assertNotNull($newSecret);
+        self::assertNotSame($secret, $newSecret);
+        self::assertNull(admin_validate_reset_secret($pdo, $secret), 'old secret must be invalidated');
+
+        // Cleanup
+        @unlink($tmpConfig);
+        $pdo->prepare("UPDATE tenants SET reset_secret = NULL WHERE slug = 'meertec'")->execute();
+    }
+
+    public function testResetPasswordFailsOnMissingConfigFile(): void
+    {
+        $pdo = $this->pdo();
+        $ok = admin_reset_password($pdo, $this->tenantId(), 'test', '/nonexistent/config.php');
+        self::assertFalse($ok);
+    }
 }

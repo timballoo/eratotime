@@ -17,6 +17,30 @@ admin_session_start();
 $loggedIn = admin_is_logged_in();
 $csrf = $loggedIn ? admin_csrf_token() : '';
 
+// Password reset flow: admin.php?reset=TOKEN
+$resetToken = (string) ($_GET['reset'] ?? '');
+$isReset = $resetToken !== '' && !$loggedIn;
+$resetValid = false;
+if ($isReset) {
+    $resetHost = $config['db']['host'] ?? 'localhost';
+    $resetPort = (int) ($config['db']['port'] ?? 3306);
+    $resetName = $config['db']['name'] ?? '';
+    $resetUser = $config['db']['user'] ?? '';
+    $resetPass = $config['db']['pass'] ?? '';
+    $resetCharset = $config['db']['charset'] ?? 'utf8mb4';
+    if ($resetName !== '') {
+        try {
+            $resetPdo = new PDO(
+                "mysql:host={$resetHost};port={$resetPort};dbname={$resetName};charset={$resetCharset}",
+                $resetUser, $resetPass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+            $resetValid = admin_validate_reset_secret($resetPdo, $resetToken) !== null;
+        } catch (Throwable $e) {
+            $resetValid = false;
+        }
+    }
+}
+
 // Version static assets by file mtime (Hostinger CDN caches them for 7 days).
 $assetVer = max(
     (int) @filemtime(__DIR__ . '/css/eratotime.css'),
@@ -55,7 +79,32 @@ $assetVer = max(
 
 <main id="main" class="booking-main admin-main">
     <div class="section-inner admin-wrap">
-        <?php if (!$loggedIn): ?>
+        <?php if ($isReset && $resetValid): ?>
+            <div class="booking-card admin-login-card">
+                <p class="eyebrow">Eratotime</p>
+                <h1 class="booking-heading">Reset admin password</h1>
+                <form id="admin-reset-form" class="booking-form">
+                    <input type="hidden" name="secret" value="<?= htmlspecialchars($resetToken) ?>">
+                    <div class="field">
+                        <label class="field-label" for="a-new-pass">New password</label>
+                        <input class="field-input" id="a-new-pass" name="password" type="password" autocomplete="new-password" minlength="8" required>
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="a-new-pass2">Confirm password</label>
+                        <input class="field-input" id="a-new-pass2" name="password2" type="password" autocomplete="new-password" minlength="8" required>
+                    </div>
+                    <div id="reset-status" class="status" role="status"></div>
+                    <button type="submit" class="btn btn-primary">Set new password</button>
+                </form>
+            </div>
+        <?php elseif ($isReset && !$resetValid): ?>
+            <div class="booking-card admin-login-card">
+                <p class="eyebrow">Eratotime</p>
+                <h1 class="booking-heading">Reset link invalid</h1>
+                <p class="slot-empty">This password reset link is invalid or has already been used.</p>
+                <p><a class="btn btn-ghost" href="admin.php">Back to sign in</a></p>
+            </div>
+        <?php elseif (!$loggedIn): ?>
             <div class="booking-card admin-login-card">
                 <p class="eyebrow">Eratotime</p>
                 <h1 class="booking-heading">Admin sign in</h1>

@@ -4,6 +4,7 @@ config.local.php
 .env
 *.key
 /eratotime-keys/
+service-account.json
 
 # Dev-only local preview (exposes real seed data; must never deploy)
 preview.php

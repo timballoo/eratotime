@@ -75,6 +75,62 @@ if (!function_exists('admin_session_start')) {
     }
 
     /**
+     * Validate a password-reset secret against the tenants table.
+     * Returns the tenant_id if valid, null otherwise.
+     */
+    function admin_validate_reset_secret(PDO $pdo, string $secret): ?int
+    {
+        if ($secret === '') {
+            return null;
+        }
+        $row = $pdo->prepare("SELECT id FROM tenants WHERE reset_secret = ? AND active = 1 LIMIT 1");
+        $row->execute([$secret]);
+        $result = $row->fetch(PDO::FETCH_ASSOC);
+        return $result !== false ? (int) $result['id'] : null;
+    }
+
+    /**
+     * Change the admin password in config.php and regenerate the reset secret.
+     * $configPath is the absolute path to config.php on disk.
+     */
+    function admin_reset_password(PDO $pdo, int $tenantId, string $newPassword, string $configPath): bool
+    {
+        if (!is_file($configPath)) {
+            return false;
+        }
+
+        $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+        if ($newHash === false) {
+            return false;
+        }
+
+        $configContent = file_get_contents($configPath);
+        if ($configContent === false) {
+            return false;
+        }
+
+        // Replace the password_hash value in config.php.
+        $pattern = "/('password_hash'\s*=>\s*')[^']*(')/";
+        $updated = preg_replace_callback($pattern, function ($matches) use ($newHash) {
+            return $matches[1] . $newHash . $matches[2];
+        }, $configContent);
+
+        if ($updated === null || $updated === $configContent) {
+            return false;
+        }
+
+        if (file_put_contents($configPath, $updated) === false) {
+            return false;
+        }
+
+        // Regenerate the reset secret so the old URL is invalidated.
+        $newSecret = bin2hex(random_bytes(32));
+        $pdo->prepare("UPDATE tenants SET reset_secret = ? WHERE id = ?")->execute([$newSecret, $tenantId]);
+
+        return true;
+    }
+
+    /**
      * Session CSRF token for admin state-changing calls.
      */
     function admin_csrf_token(): string
@@ -397,7 +453,7 @@ if (!function_exists('admin_session_start')) {
             "UPDATE global_settings SET organizer_bio = ?, organizer_photo_path = ?, global_daily_cap = ?,
                 global_weekly_cap = ?, whatsapp_enabled = ?, whatsapp_destination_number = ?,
                 organizer_timezone = ?, request_hold_hours = ?, request_log_retention_days = ?,
-                meet_link = ?
+                meet_link = ?, dynamic_meet_links = ?, delete_meet_events = ?
              WHERE tenant_id = ?"
         )->execute([
             trim((string) ($data['organizer_bio'] ?? '')),
@@ -410,6 +466,8 @@ if (!function_exists('admin_session_start')) {
             max(1, (int) ($data['request_hold_hours'] ?? 24)),
             max(7, (int) ($data['request_log_retention_days'] ?? 30)),
             trim((string) ($data['meet_link'] ?? '')) === '' ? null : trim((string) $data['meet_link']),
+            empty($data['dynamic_meet_links']) ? 0 : 1,
+            empty($data['delete_meet_events']) ? 0 : 1,
             $tenantId,
         ]);
     }

@@ -153,6 +153,27 @@ if (!function_exists('request_submit')) {
             return ['ok' => false, 'error' => $e->getMessage()];
         }
 
+        // Dynamic Meet link generation — outside the transaction (network call).
+        // On success, stores the link on request_log for notifications to use.
+        // On failure, falls back to the static link configured per meeting type.
+        if ($videoCall && !empty($settings['dynamic_meet_links']) && meet_is_configured($config)) {
+            try {
+                $startDt = new DateTimeImmutable($start, new DateTimeZone('UTC'));
+                $endDt = new DateTimeImmutable($end, new DateTimeZone('UTC'));
+                $result = meet_create_link($config, 'Eratotime booking', $startDt, $endDt, $orgTzName);
+                if ($result !== null) {
+                    $pdo->prepare("UPDATE request_log SET meet_link = ? WHERE id = ?")
+                        ->execute([$result['link'], $requestId]);
+                    if (!empty($settings['delete_meet_events']) && !empty($result['event_id'])) {
+                        meet_delete_event($config, $result['event_id']);
+                    }
+                }
+            } catch (Throwable $e) {
+                $pdo->prepare("INSERT INTO activity_log (tenant_id, event_type, detail) VALUES (?, 'meet_link_failed', ?)")
+                    ->execute([$tenantId, json_encode(['request_id' => $requestId, 'error' => $e->getMessage()])]);
+            }
+        }
+
         // Fire-and-forget: attempt immediate notification; failures stay pending
         // for cron/retry_notifications.php (4.5).
         try {

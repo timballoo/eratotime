@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     slug          VARCHAR(64)  NOT NULL,
     display_name  VARCHAR(191) NOT NULL,
     active        TINYINT(1)   NOT NULL DEFAULT 1,
+    reset_secret  VARCHAR(64)  NULL,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_tenants_slug (slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -60,6 +61,8 @@ CREATE TABLE IF NOT EXISTS global_settings (
     request_hold_hours          SMALLINT UNSIGNED NOT NULL DEFAULT 24,
     request_log_retention_days  SMALLINT UNSIGNED NOT NULL DEFAULT 30,
     meet_link               VARCHAR(255) NULL,
+    dynamic_meet_links      TINYINT(1) NOT NULL DEFAULT 0,
+    delete_meet_events      TINYINT(1) NOT NULL DEFAULT 0,
     UNIQUE KEY uq_global_settings_tenant (tenant_id),
     CONSTRAINT fk_global_settings_tenant
         FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
@@ -191,6 +194,7 @@ CREATE TABLE IF NOT EXISTS request_log (
     requested_end_utc   DATETIME NOT NULL,
     custom_answers      JSON NULL,
     video_call          TINYINT(1) NOT NULL DEFAULT 0,
+    meet_link           VARCHAR(255) NULL,
     status              ENUM('pending','fulfilled','cancelled','expired') NOT NULL DEFAULT 'pending',
     sent_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     soft_hold_expires_at DATETIME NOT NULL,
@@ -284,10 +288,11 @@ ON DUPLICATE KEY UPDATE display_name = VALUES(display_name);
 SET @tenant_id = (SELECT id FROM tenants WHERE slug = 'meertec' LIMIT 1);
 
 INSERT INTO global_settings (
-    tenant_id, mailbox_destination, whatsapp_enabled, organizer_timezone, request_hold_hours, request_log_retention_days
+    tenant_id, mailbox_destination, whatsapp_enabled, organizer_timezone, request_hold_hours, request_log_retention_days,
+    dynamic_meet_links, delete_meet_events
 )
 VALUES (
-    @tenant_id, 'stephen@meertec.ltd', 0, 'Europe/London', 24, 30
+    @tenant_id, 'stephen@meertec.ltd', 0, 'Europe/London', 24, 30, 0, 0
 )
 ON DUPLICATE KEY UPDATE
     mailbox_destination = VALUES(mailbox_destination),

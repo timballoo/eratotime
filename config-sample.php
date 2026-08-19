@@ -74,4 +74,12 @@ return [
         'from_name' => 'Eratotime',
     ],
 
+    // Google Meet dynamic link generation (optional).
+    // When enabled, a unique Meet link is generated per booking via the
+    // Calendar API.  The Gmail address never appears in any output.
+    'google_meet' => [
+        'service_account_path' => getenv('ERATO_GOOGLE_SERVICE_ACCOUNT_PATH') ?: '',
+        'calendar_id'          => getenv('ERATO_GOOGLE_MEET_CALENDAR_ID') ?: '',
+    ],
+
 ];
