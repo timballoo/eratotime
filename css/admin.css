@@ -56,7 +56,7 @@
 .grid-wrap { overflow-x: auto; margin: 12px 0 18px; border: 1px solid var(--paper-line); }
 .grid-head { display: grid; grid-template-columns: 64px repeat(7, 1fr); background: var(--paper-alt); }
 .grid-rows { display: grid; }
-.grid-rows .grid-time, .grid-rows .grid-cell { display: none; }
+.grid-rows .grid-time, .grid-rows .grid-cell { }
 .grid-rows { grid-template-columns: 64px repeat(7, 1fr); }
 .grid-corner, .grid-dow {
   font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
