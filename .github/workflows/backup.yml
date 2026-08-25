@@ -39,7 +39,7 @@ jobs:
 
       - name: Pull backups down to the runner
         run: |
-          mkdir -p backup
+          mkdir -p backup/eratotime backup/baikal/config backup/baikal/Specific
           rsync -az -e "ssh -p 65002 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
             ${{ secrets.HOSTINGER_USER }}@${{ secrets.HOSTINGER_IP }}:/home/${{ secrets.HOSTINGER_USER }}/backups/eratotime/ backup/eratotime/
           # Baïkal's data lives in its config/ + Specific/ dirs (settings, users,
