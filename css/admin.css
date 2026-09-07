@@ -21,7 +21,7 @@
   background: var(--paper-alt); border: 1px solid var(--paper-line); color: var(--paper-text-lo);
   border-radius: var(--radius); padding: 3px 9px; margin-left: 6px;
 }
-.badge-dash.badge-on { background: rgba(76,122,109,0.15); color: var(--verdigris); border-color: var(--verdigris); }
+.badge-dash.badge-on, .badge-dash.badge-fulfilled { background: rgba(76,122,109,0.15); color: var(--verdigris); border-color: var(--verdigris); }
 .badge-dash.badge-pending { background: rgba(176,141,87,0.15); color: var(--brass-dark); border-color: var(--brass); }
 .badge-dash.badge-cancelled, .badge-dash.badge-expired { opacity: 0.6; }
 

@@ -449,11 +449,13 @@ if (!function_exists('admin_session_start')) {
 
     function admin_settings_save(PDO $pdo, int $tenantId, array $data): void
     {
+        $sigPath = trim((string) ($data['email_signature_path'] ?? ''));
         $pdo->prepare(
             "UPDATE global_settings SET organizer_bio = ?, organizer_photo_path = ?, global_daily_cap = ?,
                 global_weekly_cap = ?, whatsapp_enabled = ?, whatsapp_destination_number = ?,
                 organizer_timezone = ?, request_hold_hours = ?, request_log_retention_days = ?,
-                meet_link = ?, dynamic_meet_links = ?, delete_meet_events = ?
+                meet_link = ?, dynamic_meet_links = ?, delete_meet_events = ?,
+                email_signature_path = ?
              WHERE tenant_id = ?"
         )->execute([
             trim((string) ($data['organizer_bio'] ?? '')),
@@ -468,8 +470,19 @@ if (!function_exists('admin_session_start')) {
             trim((string) ($data['meet_link'] ?? '')) === '' ? null : trim((string) $data['meet_link']),
             empty($data['dynamic_meet_links']) ? 0 : 1,
             empty($data['delete_meet_events']) ? 0 : 1,
+            $sigPath === '' ? null : $sigPath,
             $tenantId,
         ]);
+
+        // Write signature content to file if provided.
+        $sigContent = $data['email_signature_content'] ?? null;
+        if (is_string($sigContent) && $sigContent !== '') {
+            $target = $sigPath !== '' ? $sigPath : dirname(__DIR__) . DIRECTORY_SEPARATOR . 'email_signature.html';
+            if (!is_dir(dirname($target))) {
+                @mkdir(dirname($target), 0755, true);
+            }
+            file_put_contents($target, $sigContent);
+        }
     }
 
     function admin_sources_list(PDO $pdo, int $tenantId): array

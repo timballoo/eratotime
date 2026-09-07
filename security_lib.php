@@ -111,12 +111,12 @@ if (!function_exists('security_rate_limit')) {
      * Create a fresh challenge for the booking page widget.
      * Returns the JSON the <altcha-widget challenge-url> endpoint serves.
      */
-    function altcha_challenge_json(array $config, int $ttlSeconds = 300): string
+    function altcha_challenge_json(array $config, int $ttlSeconds = 900): string
     {
         $altcha = altcha_instance($config);
         $options = new AltchaOrg\Altcha\CreateChallengeOptions(
             algorithm: new AltchaOrg\Altcha\Algorithm\Sha(AltchaOrg\Altcha\Algorithm\ShaAlgorithm::SHA256),
-            cost: 100000,
+            cost: 1000,
             expiresAt: time() + $ttlSeconds,
         );
         return $altcha->createChallenge($options)->toJson();

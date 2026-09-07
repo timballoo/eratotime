@@ -124,26 +124,32 @@ if (!function_exists('notify_send_email')) {
     }
 
     /**
-     * Load the email signature HTML from email_signature.html (one level up from
-     * notify_lib.php).  Returns empty string if the file is missing.
+     * Load the email signature HTML from the configured path (tenant override)
+     * or the default email_signature.html (one level up from notify_lib.php).
+     * Returns empty string if the file is missing.
      */
-    function notify_signature_html(): string
+    function notify_signature_html(?string $path = null): string
     {
-        static $cached = null;
-        if ($cached !== null) {
-            return $cached;
+        static $cached = [];
+        $key = $path ?? '__default__';
+        if (array_key_exists($key, $cached)) {
+            return $cached[$key];
         }
-        $path = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'email_signature.html';
-        $cached = is_file($path) ? (string) file_get_contents($path) : '';
-        return $cached;
+        if ($path !== null && is_file($path)) {
+            $cached[$key] = (string) file_get_contents($path);
+        } else {
+            $default = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'email_signature.html';
+            $cached[$key] = is_file($default) ? (string) file_get_contents($default) : '';
+        }
+        return $cached[$key];
     }
 
     /**
      * Wrap a signature block in a separator + inline-styled wrapper.
      */
-    function notify_signature_block(): string
+    function notify_signature_block(?string $path = null): string
     {
-        $html = notify_signature_html();
+        $html = notify_signature_html($path);
         if ($html === '') {
             return '';
         }
@@ -253,7 +259,7 @@ if (!function_exists('notify_send_email')) {
         $html .= '<p>Dr Stephen D. Jones will confirm the meeting by sending the calendar invitation. ' .
             'If you need to change or cancel, reply to this email or contact ' .
             htmlspecialchars((string) ($settings['mailbox_destination'] ?? '')) . '.</p>' .
-            notify_signature_block() . '</div>';
+            notify_signature_block($settings['email_signature_path'] ?? null) . '</div>';
         $alt = "Your request is in\n\n" . $request['invitee_name'] . ",\n\nWe received your request for:\n" .
             $type['name'] . ' · ' . $when . ' (' . $type['duration_min'] . ' min).\n' .
             'The organiser will confirm by sending the calendar invitation.';
@@ -294,7 +300,7 @@ if (!function_exists('notify_send_email')) {
         }
         $html .= '<p>Import the attached <strong>eratotime-meeting.ics</strong> into the Baïkal calendar (Thunderbird) ' .
             'to create the event pre-filled — the meeting link is already in it. Then mark the request fulfilled in the admin panel.</p>' .
-            notify_signature_block() . '</div>';
+            notify_signature_block($settings['email_signature_path'] ?? null) . '</div>';
 
         $alt = "New booking request\n\n" . $type['name'] . ' · ' . $when . "\nInvitee: " . $request['invitee_name'] .
             ' <' . $request['invitee_email'] . ">\n" .

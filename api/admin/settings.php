@@ -9,6 +9,15 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $settings = admin_settings_load($pdo, $tenantId);
         $settings['organizer_photo_path'] = $settings['organizer_photo_path'] ?? null;
+        // Read signature content from file if path is set.
+        $sigPath = $settings['email_signature_path'] ?? null;
+        if ($sigPath !== null && is_file($sigPath)) {
+            $settings['email_signature_content'] = (string) file_get_contents($sigPath);
+        } elseif (is_file(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'email_signature.html')) {
+            $settings['email_signature_content'] = (string) file_get_contents(dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'email_signature.html');
+        } else {
+            $settings['email_signature_content'] = '';
+        }
         admin_json(['ok' => true, 'settings' => $settings]);
     }
 

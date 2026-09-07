@@ -433,6 +433,18 @@ async function renderMtEditor(view, t) {
 
 // --- Requests ------------------------------------------------------------------
 
+// Friendly status labels for the request log. Display-only: the underlying
+// request_log.status values (pending/fulfilled/cancelled/expired) are unchanged.
+const REQUEST_STATUS_LABELS = {
+    pending: 'Pending',
+    fulfilled: 'Confirmed',
+    cancelled: 'Failed',
+    expired: 'Failed',
+};
+function requestStatusLabel(status) {
+    return REQUEST_STATUS_LABELS[status] || status;
+}
+
 async function renderRequests(view) {
     const d = await api('api/admin/requests.php');
     view.innerHTML = `
@@ -443,12 +455,12 @@ async function renderRequests(view) {
           <div class="admin-row">
             <div>
               <strong>${esc(r.invitee_name)}</strong> &lt;${esc(r.invitee_email)}&gt;
-              <span class="badge-dash badge-${esc(r.status)}">${esc(r.status)}</span>
               <div class="muted">${esc(r.type_name)} · ${esc(fmtTime(r.requested_start_utc))}${r.video_call ? ' · Video call' : ''}</div>
               ${r.guest_emails && r.guest_emails.length ? `<div class="muted">Guests: ${esc(r.guest_emails.join(', '))}</div>` : ''}
               ${r.custom_answers && r.custom_answers.length ? `<div class="muted">${esc(r.custom_answers.map(a => `${a.label}: ${a.answer}`).join(' · '))}</div>` : ''}
             </div>
             <div class="admin-row-actions">
+              <span class="badge-dash badge-${esc(r.status)}">${esc(requestStatusLabel(r.status))}</span>
               ${r.status === 'pending' ? `<button type="button" class="btn btn-primary btn-small" data-act="fulfilled" data-id="${r.id}">Mark fulfilled</button>
               <button type="button" class="btn btn-ghost btn-small" data-act="cancelled" data-id="${r.id}">Cancel</button>` : ''}
             </div>
@@ -575,6 +587,12 @@ async function renderSettings(view) {
             <div class="field"><label class="field-label">Dynamic Meet links</label><input type="checkbox" name="dynamic_meet_links" ${s.dynamic_meet_links ? 'checked' : ''}></div>
             <div class="field"><label class="field-label">Delete temp Meet events</label><input type="checkbox" name="delete_meet_events" ${s.delete_meet_events ? 'checked' : ''}></div>
           </div>
+          <div class="field">
+            <label class="field-label">Email signature</label>
+            <textarea class="field-textarea" name="email_signature_content" rows="5" placeholder="HTML signature appended to outgoing emails">${esc(s.email_signature_content || '')}</textarea>
+            <input class="field-input" name="email_signature_path" value="${esc(s.email_signature_path || '')}" placeholder="Custom file path (leave blank for default: email_signature.html)">
+            <p class="field-hint">Leave the path blank to use the default file. HTML is rendered in emails.</p>
+          </div>
           <button type="submit" class="btn btn-primary">Save</button>
           <div id="set-status" class="status"></div>
         </form>
@@ -589,7 +607,8 @@ async function renderSettings(view) {
             whatsapp_destination_number: fd.get('whatsapp_destination_number'), organizer_timezone: fd.get('organizer_timezone'),
             request_hold_hours: Number(fd.get('request_hold_hours') || 24), request_log_retention_days: Number(fd.get('request_log_retention_days') || 30),
             meet_link: fd.get('meet_link'), dynamic_meet_links: fd.get('dynamic_meet_links') ? 1 : 0,
-            delete_meet_events: fd.get('delete_meet_events') ? 1 : 0 };
+            delete_meet_events: fd.get('delete_meet_events') ? 1 : 0,
+            email_signature_path: fd.get('email_signature_path'), email_signature_content: fd.get('email_signature_content') };
         status.className = 'status is-visible status-info';
         status.textContent = 'Saving…';
         try {

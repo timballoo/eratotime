@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS global_settings (
     meet_link               VARCHAR(255) NULL,
     dynamic_meet_links      TINYINT(1) NOT NULL DEFAULT 0,
     delete_meet_events      TINYINT(1) NOT NULL DEFAULT 0,
+    email_signature_path    VARCHAR(255) NULL,
     UNIQUE KEY uq_global_settings_tenant (tenant_id),
     CONSTRAINT fk_global_settings_tenant
         FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
@@ -289,10 +290,10 @@ SET @tenant_id = (SELECT id FROM tenants WHERE slug = 'meertec' LIMIT 1);
 
 INSERT INTO global_settings (
     tenant_id, mailbox_destination, whatsapp_enabled, organizer_timezone, request_hold_hours, request_log_retention_days,
-    dynamic_meet_links, delete_meet_events
+    dynamic_meet_links, delete_meet_events, email_signature_path
 )
 VALUES (
-    @tenant_id, 'stephen@meertec.ltd', 0, 'Europe/London', 24, 30, 0, 0
+    @tenant_id, 'stephen@meertec.ltd', 0, 'Europe/London', 24, 30, 0, 0, NULL
 )
 ON DUPLICATE KEY UPDATE
     mailbox_destination = VALUES(mailbox_destination),

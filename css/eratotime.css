@@ -143,12 +143,17 @@ html { scroll-behavior: smooth; }
 /* ---------- Timezone ---------- */
 .tz-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
 .tz-label { font-family: var(--font-mono); font-size: 0.76rem; color: var(--paper-text-lo); }
-.tz-select, .field-input, .field-textarea {
+.field-input, .field-textarea {
   font: inherit; color: var(--paper-text-hi);
   background: var(--paper); border: 1px solid var(--paper-line);
   border-radius: var(--radius); padding: 10px 12px; width: 100%;
 }
-.tz-select { width: auto; max-width: 100%; }
+.tz-select {
+  font-family: var(--font-mono); font-size: 0.76rem; color: var(--paper-text-hi);
+  background: transparent; border: 0; padding: 0; width: auto; max-width: 100%;
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+}
+.tz-select:hover, .tz-select:focus-visible { color: var(--brass-dark); }
 
 /* ---------- Date picker ---------- */
 .month-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }

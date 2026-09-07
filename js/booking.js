@@ -133,7 +133,7 @@ function render() {
             <input id="f-website" name="website" type="text" tabindex="-1" autocomplete="off">
           </div>
           <div id="summary"></div>
-          ${CONFIG.altcha_enabled ? `<altcha-widget challenge-url="${esc(CONFIG.base)}api/altcha.php" name="altcha"></altcha-widget>` : ''}
+          ${CONFIG.altcha_enabled ? `<altcha-widget challenge-url="${esc(CONFIG.base)}api/altcha.php" name="altcha" auto="onload"></altcha-widget>` : ''}
           <button type="submit" class="btn btn-primary" id="submit-btn">Request this time</button>
         </form>
       </div>`;
@@ -409,6 +409,45 @@ function refreshSlots() {
 
 // --- Form ---------------------------------------------------------------------
 
+// ALTCHA helpers: the widget solves its challenge asynchronously (auto="onload"
+// above), and its .value is empty until a solution is ready. Because the widget
+// drops the payload once the challenge expires, wait for (or restart) the solve
+// at submit time rather than submitting whatever .value happens to hold.
+function altchaWidget() {
+    return document.querySelector('altcha-widget');
+}
+
+function altchaWidgetValue() {
+    const w = altchaWidget();
+    return w && typeof w.value === 'string' ? w.value : '';
+}
+
+async function ensureAltchaValue() {
+    const w = altchaWidget();
+    if (!w) return '';
+    const value = altchaWidgetValue();
+    if (value) return value;
+    const state = typeof w.getState === 'function' ? w.getState() : null;
+    if (state === 'verifying') {
+        await new Promise(resolve => {
+            const onState = () => {
+                if (altchaWidgetValue()) {
+                    w.removeEventListener('statechange', onState);
+                    resolve();
+                }
+            };
+            w.addEventListener('statechange', onState);
+        });
+    } else if (typeof w.verify === 'function') {
+        try {
+            await w.verify();
+        } catch (err) {
+            // fall through: empty value is handled by the caller
+        }
+    }
+    return altchaWidgetValue();
+}
+
 function addGuestRow() {
     const list = document.getElementById('guest-list');
     const row = document.createElement('div');
@@ -454,7 +493,6 @@ async function onSubmit(e) {
         guests: Array.from(document.querySelectorAll('input[name="guest"]')).map(i => i.value.trim()).filter(v => v !== ''),
         website: document.getElementById('f-website').value.trim(),
         csrf: CONFIG.csrf,
-        altcha: CONFIG.altcha_enabled ? (document.querySelector('altcha-widget')?.value || '') : '',
     };
     if (!data.name || !data.email) {
         setStatus('Please enter your name and email.', 'error');
@@ -463,6 +501,14 @@ async function onSubmit(e) {
     const btn = document.getElementById('submit-btn');
     btn.disabled = true;
     try {
+        if (CONFIG.altcha_enabled) {
+            data.altcha = await ensureAltchaValue();
+            if (!data.altcha) {
+                setStatus('The anti-bot check is still running — please wait a moment and try again.', 'error');
+                btn.disabled = false;
+                return;
+            }
+        }
         const res = await fetch(`${CONFIG.base}api/requests.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -475,9 +521,13 @@ async function onSubmit(e) {
         } else {
             setStatus(body.error || `Submission failed (${res.status})`, 'error');
             btn.disabled = false;
+            if (CONFIG.altcha_enabled) {
+                const w = altchaWidget();
+                if (w && typeof w.reset === 'function') w.reset();
+            }
         }
     } catch (err) {
-        setStatus('Request submission is being wired up in the next phase — meanwhile, please email stephen@meertec.ltd to arrange a time.', 'info');
+        setStatus('Request submission failed — please check your connection and try again.', 'error');
         btn.disabled = false;
     }
 }

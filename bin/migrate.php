@@ -64,5 +64,6 @@ migrate_add_column($pdo, 'request_log', 'meet_link', 'VARCHAR(255) NULL');
 migrate_add_column($pdo, 'global_settings', 'meet_link', 'VARCHAR(255) NULL');
 migrate_add_column($pdo, 'global_settings', 'dynamic_meet_links', 'TINYINT(1) NOT NULL DEFAULT 0');
 migrate_add_column($pdo, 'global_settings', 'delete_meet_events', 'TINYINT(1) NOT NULL DEFAULT 0');
+migrate_add_column($pdo, 'global_settings', 'email_signature_path', 'VARCHAR(255) NULL');
 migrate_add_column($pdo, 'tenants', 'reset_secret', 'VARCHAR(64) NULL');
 exit(0);
