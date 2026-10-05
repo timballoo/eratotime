@@ -38,14 +38,28 @@ if ($sql === false) {
     exit(1);
 }
 
-$pdo->exec($sql);
-printf("Migration applied to %s\n", $config['db']['name']);
-
 // Guarded schema sync for existing databases: CREATE TABLE IF NOT EXISTS never
 // alters a table that already exists, so new columns are added explicitly when
 // missing. Works on MySQL and MariaDB (no ADD COLUMN IF NOT EXISTS needed).
+//
+// This MUST run *before* the schema+seed batch below. The seed INSERTs in
+// db/eratotime_migration.sql already reference the newer columns (e.g. the
+// global_settings seed writes dynamic_meet_links / delete_meet_events /
+// email_signature_path). On a pre-existing database those columns are absent,
+// so that seed INSERT fails with 'Unknown column' and aborts the whole
+// multi-statement batch — leaving later columns such as request_log.meet_link
+// unadded, which then breaks the retry_notifications cron. Adding the columns
+// first makes every column the seed references exist by the time it runs.
 function migrate_add_column(PDO $pdo, string $table, string $column, string $definition): void
 {
+    $tableExists = $pdo->prepare(
+        "SELECT COUNT(*) FROM information_schema.TABLES
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?"
+    );
+    $tableExists->execute([$table]);
+    if ((int) $tableExists->fetchColumn() === 0) {
+        return; // created below by the schema, with the column already included
+    }
     $exists = $pdo->prepare(
         "SELECT COUNT(*) FROM information_schema.COLUMNS
           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?"
@@ -66,4 +80,7 @@ migrate_add_column($pdo, 'global_settings', 'dynamic_meet_links', 'TINYINT(1) NO
 migrate_add_column($pdo, 'global_settings', 'delete_meet_events', 'TINYINT(1) NOT NULL DEFAULT 0');
 migrate_add_column($pdo, 'global_settings', 'email_signature_path', 'VARCHAR(255) NULL');
 migrate_add_column($pdo, 'tenants', 'reset_secret', 'VARCHAR(64) NULL');
+
+$pdo->exec($sql);
+printf("Migration applied to %s\n", $config['db']['name']);
 exit(0);
