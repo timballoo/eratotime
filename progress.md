@@ -129,3 +129,15 @@ Requirements doc is **v2 (request-submission model)** — see `docs/eratotime-re
   - Deployment: Eratotime on its **own subdomain doc root** `domains/book.meertec.ltd/public_html` (outside the shared `meertec.ltd` tree); `.rsyncignore` uses `P` (protect) so `.env`/`config.php`/`uploads/` survive `--delete`. Old `www.meertec.ltd/eratotime` is a symlink. Baïkal restored + CalDAV sync green. Nightly off-box backup (`backup.yml`) covers DB + Baïkal config/data.
   - 109 tests / 467 assertions green.
   - **Remaining external/manual:** schedule the ONE hPanel cron (see OPERATIONS.md); set admin passphrase in server `config.php`; enable `sodium` for web PHP in hPanel; set `ERATO_CRON_SECRET` in the server `.env` only if HTTP dispatch is wanted.
+
+### Phase 8 — Add-to-Calendar (.ics) + Availability Feed
+- **Status:** Code complete; pending deployment + live HTTP smoke test
+- **Prerequisites:** Phase 7 complete
+- **Started:** 2026-10-10
+- **Notes:**
+  - **Invitee "Add to calendar" (spec 2.5 rule kept):** the invitee email does **NOT** attach an `.ics` — it carries a **token-guarded link** to `api/ics.php?id={id}&token={hmac}` (same organizer VEVENT via `notify_build_ics`: SUMMARY `Eratotime: …`, LOCATION = Meet link) + a prefilled Google Calendar link. Token = stateless HMAC over `request:{id}` (`security_signed_token`/`verify`, signed with `csrf_secret`) — no DB column, non-enumerable, per-IP rate-limited. The success screen now shows "Add to Outlook / Apple (.ics)" (download) + "Add to Google Calendar" buttons via `ics_url`/`gcal_url` returned by `api/requests.php`.
+  - **Public availability feed:** `api/availability_ics.php` serializes each meeting type's open windows over its horizon as a subscribable Internet Calendar, fed by the exact same cache read as `api/slots.php`. New `ics_lib.php`: `ics_merge_windows()` (collapses grid-aligned 30-min starts into contiguous blocks) + `ics_build_availability()` (one `VEVENT` per window, `TRANSP:TRANSPARENT`, `STATUS:CONFIRMED`, UTC, `X-WR-CALNAME`, `X-PUBLISHED-TTL`/`REFRESH-INTERVAL:PT30M`). **Fails closed on stale sync** (empty calendar). Routed pretty: `/t/{tenant}/availability.ics` and `/t/{tenant}/availability/{type}.ics` (`.htaccess`).
+  - **Admin "Share" panel** on the Dashboard: per-type booking link, feed URL (Copy) + Subscribe (webcal) — `admin_share_links()` in `admin_lib.php`, new `links` in `api/admin/dashboard.php`.
+  - **Config:** new `ERATO_BOOKING_URL` (`app.booking_url`) used for absolute links in emails/admin; falls back to `ERATO_BASE_URL` (`notify_booking_base_url()`).
+  - **Not Exchange/Scheduling-Assistant aware:** Outlook's scheduling assistant ignores subscribed calendars; the feed is bookable-time publication only (per docs). Must verify: set `ERATO_BOOKING_URL` in the live `.env`, `composer dump-autoload` (regenerated — `ics_lib.php` added to autoload files + `tests/bootstrap.php`), and HTTP-smoke the 3 new endpoints.
+  - Lint-clean (php -l all touch points, node --check on booking.js/admin.js). Pure suites green here (13 tests / 174 assertions incl. new token + ICS-feed tests); DB-backed suites require the test MySQL (port 3307).

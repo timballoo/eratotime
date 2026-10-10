@@ -157,6 +157,98 @@ if (!function_exists('notify_send_email')) {
     }
 
     /**
+     * The public base URL of the booking app, used to build absolute links in
+     * emails (the per-request .ics and the availability feed). Prefers
+     * app.booking_url (ERATO_BOOKING_URL) and falls back to app.base_url so an
+     * un-set env var can't produce broken links. No trailing slash.
+     */
+    function notify_booking_base_url(array $config): string
+    {
+        $app = $config['app'] ?? [];
+        $url = (string) ($app['booking_url'] ?? '');
+        if ($url === '') {
+            $url = (string) ($app['base_url'] ?? '');
+        }
+        return rtrim($url, '/');
+    }
+
+    /**
+     * URL for a single request's .ics file (api/ics.php). The token is a
+     * stateless HMAC over the request id, so no DB column is needed and the
+     * endpoint can't be enumerated. $absolute=true yields a link for emails;
+     * false yields a path the booking widget prefixes with its base.
+     */
+    function notify_request_ics_url(int $requestId, array $config, bool $absolute = true): string
+    {
+        $secret = (string) ($config['csrf_secret'] ?? '');
+        $token = security_signed_token('request:' . $requestId, $secret);
+        $path = 'api/ics.php?id=' . $requestId . '&token=' . rawurlencode($token);
+        if (!$absolute) {
+            return $path;
+        }
+        $base = notify_booking_base_url($config);
+        return $base === '' ? $path : $base . '/' . $path;
+    }
+
+    /**
+     * A Google Calendar "Add event" link prefilled with the meeting's time,
+     * location and details. Used by the invitee confirmation and the success
+     * screen's "Add to Google Calendar" button.
+     */
+    function notify_google_calendar_url(array $request, array $type, array $settings = []): string
+    {
+        $fmt = static function (string $utc): string {
+            return (new DateTimeImmutable($utc, new DateTimeZone('UTC')))->format('Ymd\THis\Z');
+        };
+        $location = (string) (notify_meeting_location($request, $type, $settings) ?? '');
+        $answers = is_array($request['custom_answers'] ?? null) ? $request['custom_answers'] : json_decode((string) ($request['custom_answers'] ?? '{}'), true);
+        $lines = [];
+        if (is_array($answers)) {
+            foreach ($answers as $a) {
+                $label = (string) ($a['label'] ?? 'Question');
+                $answer = (string) ($a['answer'] ?? '');
+                if ($answer !== '') {
+                    $lines[] = $label . ': ' . $answer;
+                }
+            }
+        }
+        $guests = is_array($request['guest_emails'] ?? null) ? $request['guest_emails'] : json_decode((string) ($request['guest_emails'] ?? '[]'), true);
+        if (is_array($guests) && $guests !== []) {
+            $lines[] = 'Guests: ' . implode(', ', $guests);
+        }
+
+        $params = [
+            'action' => 'TEMPLATE',
+            'text' => (string) ($type['name'] ?? 'Meeting'),
+            'dates' => $fmt((string) $request['requested_start_utc']) . '/' . $fmt((string) $request['requested_end_utc']),
+        ];
+        if ($location !== '') {
+            $params['location'] = $location;
+        }
+        if ($lines !== []) {
+            $params['details'] = implode("\n", $lines);
+        }
+        return 'https://calendar.google.com/calendar/render?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /**
+     * "Add to calendar" HTML block for the invitee confirmation email: an .ics
+     * download (Outlook/Apple) plus a Google Calendar link. Returns '' when the
+     * request id is unknown (nothing to link).
+     */
+    function notify_add_to_calendar_html(int $requestId, array $request, array $type, array $settings, array $config = []): string
+    {
+        if ($requestId <= 0) {
+            return '';
+        }
+        $ics = notify_request_ics_url($requestId, $config);
+        $gcal = notify_google_calendar_url($request, $type, $settings);
+        return '<p>Add this time to your calendar: ' .
+            '<a href="' . htmlspecialchars($ics) . '">Outlook / Apple (.ics)</a> &middot; ' .
+            '<a href="' . htmlspecialchars($gcal) . '">Google Calendar</a></p>';
+    }
+
+    /**
      * Render a per-meeting-type message template with simple placeholders.
      * Supported: {name} {type} {date} {location} {meet_link} {answers} {guests}.
      */
@@ -235,7 +327,7 @@ if (!function_exists('notify_send_email')) {
     /**
      * Invitee confirmation email (2.5).
      */
-    function notify_compose_invitee(array $request, array $type, array $settings): array
+    function notify_compose_invitee(array $request, array $type, array $settings, array $config = []): array
     {
         $tz = (string) ($request['invitee_timezone'] ?? 'UTC');
         $when = notify_format_time($request['requested_start_utc'], $tz);
@@ -256,6 +348,7 @@ if (!function_exists('notify_send_email')) {
         if ($msg !== '') {
             $html .= '<p style="white-space:pre-wrap;border-left:3px solid #B08D57;padding:2px 0 2px 16px;color:#5A564E">' . nl2br(htmlspecialchars($msg)) . '</p>';
         }
+        $html .= notify_add_to_calendar_html((int) ($request['id'] ?? 0), $request, $type, $settings, $config);
         $html .= '<p>Dr Stephen D. Jones will confirm the meeting by sending the calendar invitation. ' .
             'If you need to change or cancel, reply to this email or contact ' .
             htmlspecialchars((string) ($settings['mailbox_destination'] ?? '')) . '.</p>' .
@@ -360,7 +453,7 @@ if (!function_exists('notify_send_email')) {
             } else {
                 $composed = $row['template'] === 'organizer_request'
                     ? notify_compose_organizer($request, $type, $settings)
-                    : notify_compose_invitee($request, $type, $settings);
+                    : notify_compose_invitee($request, $type, $settings, $config);
                 $ics = $row['template'] === 'organizer_request' ? notify_build_ics($request, $type, $settings) : null;
                 $sent = notify_send_email($config, (string) $row['recipient'], $composed['subject'], $composed['html'], $composed['alt'], $ics);
             }

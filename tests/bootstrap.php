@@ -17,6 +17,7 @@ require_once __DIR__ . '/../notify_lib.php';
 require_once __DIR__ . '/../admin_lib.php';
 require_once __DIR__ . '/../cleanup_lib.php';
 require_once __DIR__ . '/../cron_lib.php';
+require_once __DIR__ . '/../ics_lib.php';
 require_once __DIR__ . '/../providers/caldav_provider.php';
 require_once __DIR__ . '/../providers/meet_provider.php';
 

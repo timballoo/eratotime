@@ -80,7 +80,13 @@ try {
     if (!$result['ok']) {
         requests_json(['ok' => false, 'error' => $result['error']], 400);
     }
-    requests_json(['ok' => true, 'message' => $result['message'], 'request_id' => $result['request_id']]);
+    requests_json([
+        'ok' => true,
+        'message' => $result['message'],
+        'request_id' => $result['request_id'],
+        'ics_url' => $result['ics_url'] ?? null,
+        'gcal_url' => $result['gcal_url'] ?? null,
+    ]);
 } catch (Throwable $e) {
     requests_json(['ok' => false, 'error' => 'Something went wrong — please try again.'], 500);
 }

@@ -71,6 +71,37 @@ final class SecurityLibTest extends TestCase
         self::assertFalse(security_honeypot_filled([], 'website'));
     }
 
+    public function testSignedTokenRoundTrip(): void
+    {
+        $token = security_signed_token('request:42', 'secret');
+        self::assertSame('request:42', security_signed_token_verify($token, 'secret'));
+        self::assertNull(security_signed_token_verify($token, 'wrong-secret'));
+        self::assertNull(security_signed_token_verify($token . 'Z', 'secret'), 'tampered token must fail');
+        self::assertNull(security_signed_token_verify('', 'secret'));
+        self::assertNull(security_signed_token_verify('not-base64', 'secret'));
+        self::assertNull(security_signed_token_verify('...', 'secret'));
+        self::assertNull(security_signed_token_verify(str_repeat('A', 10), 'secret'));
+    }
+
+    public function testSignedTokenRequiresNonEmptySecret(): void
+    {
+        $token = security_signed_token('request:42', 'secret');
+        self::assertNull(security_signed_token_verify($token, ''));
+        self::assertNull(security_signed_token_verify('', ''));
+    }
+
+    public function testSignedTokensDifferPerPayloadAndSecret(): void
+    {
+        self::assertNotSame(
+            security_signed_token('request:1', 'secret'),
+            security_signed_token('request:2', 'secret')
+        );
+        self::assertNotSame(
+            security_signed_token('request:1', 'a'),
+            security_signed_token('request:1', 'b')
+        );
+    }
+
     public function testAltchaDisabledAcceptsAnything(): void
     {
         self::assertFalse(altcha_enabled(['altcha_hmac_key' => '']));

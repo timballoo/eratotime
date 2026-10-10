@@ -471,6 +471,26 @@ function renderSummary() {
     el.innerHTML = `<div class="summary-card"><p class="summary-k">Requested time</p><p>${esc(fmt.format(new Date(state.selectedUtcSlot)))}</p><p class="summary-k">Meeting</p><p>${esc(CONFIG.type.name)} · ${CONFIG.type.duration_min} min${where ? ' · ' + esc(where) : ''}</p></div>`;
 }
 
+// After a successful submission, offer "add to calendar" links: a token-guarded
+// .ics download (Outlook/Apple) and a prefilled Google Calendar link, both
+// returned by api/requests.php. The .ics path is relative; prefix our base.
+function showAddToCalendar(body) {
+    const el = document.getElementById('summary');
+    if (!el) return;
+    const links = [];
+    if (body.ics_url) {
+        links.push(`<a class="btn btn-ghost btn-small" href="${esc(CONFIG.base + body.ics_url)}" download>Add to Outlook / Apple (.ics)</a>`);
+    }
+    if (body.gcal_url) {
+        links.push(`<a class="btn btn-ghost btn-small" href="${esc(body.gcal_url)}" target="_blank" rel="noopener">Add to Google Calendar</a>`);
+    }
+    if (!links.length) return;
+    const card = document.createElement('div');
+    card.className = 'summary-card';
+    card.innerHTML = `<p class="summary-k">Add this to your calendar</p><p class="add-cal-links">${links.join(' ')}</p>`;
+    el.appendChild(card);
+}
+
 async function onSubmit(e) {
     e.preventDefault();
     if (!state.selectedUtcSlot) {
@@ -518,6 +538,7 @@ async function onSubmit(e) {
         if (res.ok && body.ok) {
             setStatus(`Request received. ${body.message || 'The organizer will be in touch.'}`, 'info');
             btn.textContent = 'Request sent';
+            showAddToCalendar(body);
         } else {
             setStatus(body.error || `Submission failed (${res.status})`, 'error');
             btn.disabled = false;

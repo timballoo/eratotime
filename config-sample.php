@@ -55,6 +55,7 @@ return [
 
     'app' => [
         'base_url' => getenv('ERATO_BASE_URL') ?: '',         // https://www.meertec.ltd
+        'booking_url' => getenv('ERATO_BOOKING_URL') ?: '',   // https://book.meertec.ltd — base for add-to-calendar links; falls back to base_url
         'timezone' => 'Europe/London',                        // organizer timezone (default; also in global_settings)
     ],
 

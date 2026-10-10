@@ -19,6 +19,22 @@ function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+async function copyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch (_) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+        ta.remove();
+        return ok;
+    }
+}
+
 function fmtTime(utc) {
     return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(utc));
 }
@@ -169,10 +185,36 @@ async function renderDashboard(view) {
             <span class="usage-type-count">${t.n}</span>
           </div>`).join('')}` : ''}
 
+        ${d.links && d.links.types.length ? `
+        <p class="booking-step">Share — booking &amp; availability feeds</p>
+        ${d.links.base_configured ? '' : '<div class="status is-visible status-error">ERATO_BOOKING_URL is not set — add it to .env to generate shareable links.</div>'}
+        ${d.links.types.map(t => `
+          <div class="share-row">
+            <span class="share-name">${esc(t.name)}</span>
+            <div class="share-copies">
+              <span class="share-item">Booking link
+                <button type="button" class="btn btn-ghost btn-small" data-copy="${esc(t.booking_url || '')}">Copy</button>
+                <a class="btn btn-ghost btn-small" href="${esc(t.booking_url || '')}" target="_blank" rel="noopener">Open</a>
+              </span>
+              <span class="share-item">Availability feed
+                <button type="button" class="btn btn-ghost btn-small" data-copy="${esc(t.feed_url || '')}">Copy URL</button>
+                <a class="btn btn-ghost btn-small" href="${esc(t.webcal_url || '')}">Subscribe (webcal)</a>
+              </span>
+            </div>
+          </div>`).join('')}` : ''}
+
         <p class="booking-step">Actions</p>
         <p><a class="btn btn-primary" href="#" data-goto="availability">Edit availability</a></p>
       </div>`;
     view.querySelector('[data-goto]').addEventListener('click', async e => { e.preventDefault(); await switchView('availability'); });
+    view.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', async () => {
+        const ok = await copyText(btn.getAttribute('data-copy'));
+        if (ok) {
+            const old = btn.textContent;
+            btn.textContent = 'Copied';
+            setTimeout(() => { btn.textContent = old; }, 1500);
+        }
+    }));
 }
 
 // --- Availability grid ---------------------------------------------------------

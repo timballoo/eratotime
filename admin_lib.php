@@ -440,6 +440,41 @@ if (!function_exists('admin_session_start')) {
 
     // --- Settings / sources ------------------------------------------------
 
+    /**
+     * "Share" links for the admin dashboard: per active meeting type, the
+     * public booking link and the subscribable availability feed (.ics / webcal).
+     * Requires a configured base URL (app.booking_url or app.base_url); the
+     * WebUI shows a hint when it is missing.
+     */
+    function admin_share_links(PDO $pdo, int $tenantId, array $config): array
+    {
+        $app = $config['app'] ?? [];
+        $base = rtrim((string) ($app['booking_url'] ?? ''), '/');
+        if ($base === '') {
+            $base = rtrim((string) ($app['base_url'] ?? ''), '/');
+        }
+        $stmt = $pdo->prepare('SELECT slug FROM tenants WHERE id = ? LIMIT 1');
+        $stmt->execute([$tenantId]);
+        $tenantSlug = (string) ($stmt->fetchColumn() ?: '');
+
+        $stmt = $pdo->prepare('SELECT slug, name FROM meeting_types WHERE tenant_id = ? AND active = 1 ORDER BY sort_order, id');
+        $stmt->execute([$tenantId]);
+        $types = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $t) {
+            $feed = $base !== '' && $tenantSlug !== ''
+                ? $base . '/t/' . $tenantSlug . '/availability/' . $t['slug'] . '.ics'
+                : '';
+            $types[] = [
+                'slug' => $t['slug'],
+                'name' => $t['name'],
+                'booking_url' => ($base !== '' && $tenantSlug !== '') ? $base . '/t/' . $tenantSlug . '/book/' . $t['slug'] : '',
+                'feed_url' => $feed,
+                'webcal_url' => $feed !== '' ? preg_replace('/^https?:\/\//i', 'webcal://', $feed) : '',
+            ];
+        }
+        return ['base_configured' => $base !== '', 'types' => $types];
+    }
+
     function admin_settings_load(PDO $pdo, int $tenantId): array
     {
         $stmt = $pdo->prepare('SELECT * FROM global_settings WHERE tenant_id = ?');

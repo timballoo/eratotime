@@ -87,6 +87,37 @@ if (!function_exists('security_rate_limit')) {
     }
 
     /**
+     * Issue a stateless, tamper-evident token for a payload (e.g. a request id),
+     * signed with the shared secret. Format: base64url(payload . "." . hmac).
+     * Used by the public per-request .ics endpoint so a link can be shared
+     * without a DB token column and cannot be enumerated/forged.
+     */
+    function security_signed_token(string $payload, string $secret): string
+    {
+        $sig = hash_hmac('sha256', $payload, $secret);
+        return rtrim(strtr(base64_encode($payload . '.' . $sig), '+/', '-_'), '=');
+    }
+
+    /**
+     * Verify a token produced by security_signed_token(); returns the payload
+     * on success, or null if the secret is empty, the token is malformed, or
+     * the signature does not match.
+     */
+    function security_signed_token_verify(string $token, string $secret): ?string
+    {
+        if ($token === '' || $secret === '') {
+            return null;
+        }
+        $decoded = base64_decode(strtr($token, '-_', '+/'), true);
+        if ($decoded === false || !str_contains($decoded, '.')) {
+            return null;
+        }
+        [$payload, $sig] = explode('.', $decoded, 2);
+        $expected = hash_hmac('sha256', $payload, $secret);
+        return hash_equals($expected, $sig) ? $payload : null;
+    }
+
+    /**
      * ALTCHA is active only when a persistent HMAC key is configured.
      */
     function altcha_enabled(array $config): bool

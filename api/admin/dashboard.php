@@ -15,7 +15,13 @@ try {
 
     $usage = admin_dashboard_usage($pdo, $tenantId, 30);
 
-    admin_json(['ok' => true, 'warnings' => admin_dashboard_warnings($pdo, $tenantId), 'counts' => $counts, 'usage' => $usage]);
+    admin_json([
+        'ok' => true,
+        'warnings' => admin_dashboard_warnings($pdo, $tenantId),
+        'counts' => $counts,
+        'usage' => $usage,
+        'links' => admin_share_links($pdo, $tenantId, $GLOBALS['admin_config']),
+    ]);
 } catch (Throwable $e) {
     admin_json_out($e);
 }

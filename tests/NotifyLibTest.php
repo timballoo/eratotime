@@ -174,6 +174,69 @@ final class NotifyLibTest extends TestCase
         self::assertNull($captured['ics'], 'invitee email must NOT carry the .ics import file');
     }
 
+    public function testInviteeEmailCarriesAddToCalendarLinks(): void
+    {
+        $requestId = $this->seedRequest();
+        $this->queueEmail($requestId, 'invitee_confirmation', 'ada@example.com');
+
+        $captured = null;
+        $config = array_merge($this->configWithCapture($captured), [
+            'app' => ['booking_url' => 'https://book.meertec.ltd'],
+            'csrf_secret' => 'test-secret-123',
+        ]);
+        notify_process_outbox($this->pdo(), $config, 10);
+
+        // A token-guarded .ics link (Outlook/Apple) plus a Google Calendar link,
+        // and still no .ics attachment (product rule: link, never attachment).
+        self::assertStringContainsString('https://book.meertec.ltd/api/ics.php?id=' . $requestId . '&token=', $captured['html']);
+        self::assertStringContainsString('calendar.google.com/calendar/render', $captured['html']);
+        self::assertNull($captured['ics'], 'invitee email still must NOT carry an .ics attachment');
+        self::assertStringNotContainsString('meertec.ltd@gmail.com', $captured['html']);
+    }
+
+    public function testRequestIcsUrlRelativeAndAbsoluteAndFallback(): void
+    {
+        $config = ['app' => ['booking_url' => 'https://book.meertec.ltd'], 'csrf_secret' => 's'];
+        $abs = notify_request_ics_url(7, $config);
+        self::assertStringStartsWith('https://book.meertec.ltd/api/ics.php?id=7&token=', $abs);
+
+        $rel = notify_request_ics_url(7, $config, false);
+        self::assertStringStartsWith('api/ics.php?id=7&token=', $rel);
+        self::assertStringNotContainsString('book.meertec.ltd', $rel);
+
+        // Falls back to base_url when booking_url is not configured.
+        $fallback = notify_request_ics_url(7, ['app' => ['base_url' => 'https://meertec.ltd'], 'csrf_secret' => 's']);
+        self::assertStringStartsWith('https://meertec.ltd/api/ics.php?id=7&token=', $fallback);
+
+        // Neither configured -> bare path (booking widget prefixes its own base).
+        $bare = notify_request_ics_url(7, ['csrf_secret' => 's']);
+        self::assertStringStartsWith('api/ics.php?id=7&token=', $bare);
+
+        $q = [];
+        parse_str((string) parse_url($abs, PHP_URL_QUERY), $q);
+        self::assertSame('request:7', security_signed_token_verify($q['token'] ?? '', 's'));
+    }
+
+    public function testGoogleCalendarUrlTimestampsUtc(): void
+    {
+        $request = [
+            'requested_start_utc' => '2026-08-20 09:00:00',
+            'requested_end_utc' => '2026-08-20 09:30:00',
+            'custom_answers' => '[{"label":"Topic","answer":"DD"}]',
+            'guest_emails' => '["grace@example.com"]',
+        ];
+        $type = ['name' => '30 Minute Meeting'];
+        $url = notify_google_calendar_url($request, $type, ['mailbox_destination' => 'stephen@meertec.ltd']);
+
+        self::assertStringContainsString('action=TEMPLATE', $url);
+        self::assertStringContainsString('dates=20260820T090000Z', $url);
+        self::assertStringContainsString('20260820T093000Z', $url);
+        self::assertStringContainsString('text=30%20Minute%20Meeting', $url);
+        self::assertStringContainsString('Topic%3A%20DD', $url);
+        self::assertStringContainsString('grace%40example.com', $url);
+        self::assertStringNotContainsString('meertec.ltd@gmail.com', $url);
+    }
+
     public function testGmailAddressNeverAppearsInComposedOutput(): void
     {
         $requestId = $this->seedRequest();

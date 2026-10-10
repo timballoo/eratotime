@@ -182,9 +182,28 @@ if (!function_exists('request_submit')) {
             // notifications must never fail the booking
         }
 
+        // "Add to calendar" links for the success screen: a token-guarded .ics
+        // and a prefilled Google Calendar link. Relative paths so the widget
+        // prefixes its own base. Best-effort — never fail the booking for these.
+        $icsUrl = null;
+        $gcalUrl = null;
+        try {
+            $rowStmt = $pdo->prepare('SELECT * FROM request_log WHERE id = ?');
+            $rowStmt->execute([$requestId]);
+            $reqRow = $rowStmt->fetch(PDO::FETCH_ASSOC);
+            if ($reqRow !== false) {
+                $icsUrl = notify_request_ics_url($requestId, $config, false);
+                $gcalUrl = notify_google_calendar_url($reqRow, $type, $settings);
+            }
+        } catch (Throwable $e) {
+            // links are optional
+        }
+
         return [
             'ok' => true,
             'request_id' => $requestId,
+            'ics_url' => $icsUrl,
+            'gcal_url' => $gcalUrl,
             'message' => 'Request received. The organizer will confirm by sending the calendar invitation.',
         ];
     }

@@ -32,6 +32,7 @@
             "booking_lib.php",
             "cleanup_lib.php",
             "cron_lib.php",
+            "ics_lib.php",
             "providers/caldav_provider.php",
             "providers/meet_provider.php"
         ]
