@@ -188,7 +188,7 @@ final class NotifyLibTest extends TestCase
 
         // A token-guarded .ics link (Outlook/Apple) plus a Google Calendar link,
         // and still no .ics attachment (product rule: link, never attachment).
-        self::assertStringContainsString('https://book.meertec.ltd/api/ics.php?id=' . $requestId . '&token=', $captured['html']);
+        self::assertStringContainsString('https://book.meertec.ltd/api/ics.php?id=' . $requestId . '&amp;token=', $captured['html']);
         self::assertStringContainsString('calendar.google.com/calendar/render', $captured['html']);
         self::assertNull($captured['ics'], 'invitee email still must NOT carry an .ics attachment');
         self::assertStringNotContainsString('meertec.ltd@gmail.com', $captured['html']);
